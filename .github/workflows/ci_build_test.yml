@@ -1,0 +1,48 @@
+name: CI Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Remove MSys64 MingW64 Binaries
+        if: runner.os == 'Windows'
+        # remove this because there is a bad libclang.dll that confuses bindgen
+        run: Remove-Item -LiteralPath "C:\msys64\mingw64\bin" -Force -Recurse
+      - name: Install Dependencies
+        if: runner.os == 'Windows'
+        run: choco install llvm -y
+      - name: Git Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Cargo Build 
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --verbose --workspace
+      - name: Cargo Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --workspace
+      # Cache the `cargo build` so future jobs can reuse build
+      - name: Cache cargo build
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
