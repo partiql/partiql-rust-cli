@@ -15,7 +15,7 @@ exclude = [
   "**/.appveyor.yml",
 ]
 edition = "2021"
-version = "0.1.0"
+version = "0.2.0"
 
 # Example of customizing binaries in Cargo.toml.
 [[bin]]
@@ -26,9 +26,9 @@ bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-partiql-parser = { features=["serde"], version = "0.1.*" }
-partiql-source-map = "0.1.*"
-partiql-ast = "0.1.*"
+partiql-parser = { features=["serde"], version = "0.2.*" }
+partiql-source-map = "0.2.*"
+partiql-ast = "0.2.*"
 
 
 rustyline = "10.*"
