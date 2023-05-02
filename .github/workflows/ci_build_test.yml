@@ -23,21 +23,14 @@ jobs:
         with:
           submodules: recursive
       - name: Rust Toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: stable
-          override: true
-      - name: Cargo Build 
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose --workspace
+          components: clippy, rustfmt
+      - name: Cargo Build
+        run: cargo build --verbose --workspace
       - name: Cargo Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --verbose --workspace
+        run: cargo test --verbose --workspace
       # Cache the `cargo build` so future jobs can reuse build
       - name: Cache cargo build
         if: matrix.os == 'ubuntu-latest'
