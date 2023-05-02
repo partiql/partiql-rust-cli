@@ -2,8 +2,8 @@
 name = "partiql-cli"
 authors = ["PartiQL Team <partiql-team@amazon.com>"]
 description = "PartiQL CLI"
-homepage = "https://github.com/partiql/partiql-lang-rust"
-repository = "https://github.com/partiql/partiql-lang-rust"
+homepage = "https://github.com/partiql/partiql-rust-cli"
+repository = "https://github.com/partiql/partiql-rust-cli"
 license = "Apache-2.0"
 readme = "../README.md"
 keywords = ["sql", "parser", "query", "compilers", "cli"]
@@ -15,7 +15,7 @@ exclude = [
   "**/.appveyor.yml",
 ]
 edition = "2021"
-version = "0.2.0"
+version = "0.3.0"
 
 # Example of customizing binaries in Cargo.toml.
 [[bin]]
@@ -26,10 +26,13 @@ bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-partiql-parser = { features=["serde"], version = "0.2.*" }
-partiql-source-map = "0.2.*"
-partiql-ast = "0.2.*"
-
+partiql-parser = { features=["serde"], version = "0.3.*" }
+partiql-source-map = "0.3.*"
+partiql-ast = "0.3.*"
+partiql-logical-planner = "0.3.*"
+partiql-logical = "0.3.*"
+partiql-value = "0.3.*"
+partiql-eval = "0.3.*"
 
 rustyline = "10.*"
 syntect = "5.*"
