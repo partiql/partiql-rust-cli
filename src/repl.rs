@@ -133,6 +133,7 @@ impl Validator for PartiqlHelper {
                 ";" => {
                     // TODO: there's a bug here where hitting enter from the middle of a query
                     //  containing a semi-colon will repeat the query
+                    //  https://github.com/partiql/partiql-rust-cli/issues/10
                     source = &source[..source_len - 1];
                 }
                 "\n" => {}
