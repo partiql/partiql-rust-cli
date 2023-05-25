@@ -273,7 +273,7 @@ impl ToDot<ast::BinOp> for AstToDot {
             BinOpKind::Exp => "^",
             BinOpKind::Mod => "%",
             BinOpKind::Mul => "*",
-            BinOpKind::Neg => "-",
+            BinOpKind::Sub => "-",
             BinOpKind::And => "AND",
             BinOpKind::Or => "OR",
             BinOpKind::Concat => "||",
@@ -351,9 +351,8 @@ impl ToDot<ast::Query> for AstToDot {
 
         self.to_dot(out, &ast.set).edges(out, &id, "");
         self.to_dot(out, &ast.order_by).edges(out, &id, "order_by");
-        self.to_dot(out, &ast.limit).edges(out, &id, "limit");
-        self.to_dot(out, &ast.offset).edges(out, &id, "offset");
-
+        self.to_dot(out, &ast.limit_offset)
+            .edges(out, &id, "limit_offset");
         vec![id]
     }
 }
@@ -365,6 +364,7 @@ impl ToDot<ast::QuerySet> for AstToDot {
             QuerySet::Select(select) => self.to_dot(out, select),
             QuerySet::Expr(e) => self.to_dot(out, e),
             QuerySet::Values(_) => todo!(),
+            QuerySet::Table(_) => todo!(),
         }
     }
 }
@@ -387,6 +387,26 @@ impl ToDot<ast::Select> for AstToDot {
             .edges(out, &id, "");
 
         vec![id]
+    }
+}
+
+impl ToDot<ast::WhereClause> for AstToDot {
+    fn to_dot(&mut self, out: &mut Scope, ast: &ast::WhereClause) -> Targets {
+        self.to_dot(out, &ast.expr)
+    }
+}
+
+impl ToDot<ast::HavingClause> for AstToDot {
+    fn to_dot(&mut self, out: &mut Scope, ast: &ast::HavingClause) -> Targets {
+        self.to_dot(out, &ast.expr)
+    }
+}
+
+impl ToDot<ast::LimitOffsetClause> for AstToDot {
+    fn to_dot(&mut self, out: &mut Scope, ast: &ast::LimitOffsetClause) -> Targets {
+        let mut list = self.to_dot(out, &ast.limit);
+        list.extend(self.to_dot(out, &ast.offset));
+        list
     }
 }
 
@@ -483,9 +503,15 @@ impl ToDot<ast::GroupByExpr> for AstToDot {
 
 impl ToDot<ast::FromClause> for AstToDot {
     fn to_dot(&mut self, out: &mut Scope, ast: &ast::FromClause) -> Targets {
+        self.to_dot(out, &ast.source)
+    }
+}
+
+impl ToDot<ast::FromSource> for AstToDot {
+    fn to_dot(&mut self, out: &mut Scope, ast: &ast::FromSource) -> Targets {
         match &ast {
-            ast::FromClause::FromLet(fl) => self.to_dot(out, fl),
-            ast::FromClause::Join(j) => self.to_dot(out, j),
+            ast::FromSource::FromLet(fl) => self.to_dot(out, fl),
+            ast::FromSource::Join(j) => self.to_dot(out, j),
         }
     }
 }
@@ -562,10 +588,12 @@ impl ToDot<ast::CallArg> for AstToDot {
         match ast {
             ast::CallArg::Star() => vec![out.node_auto_labelled("*").id()],
             ast::CallArg::Positional(e) => self.to_dot(out, e),
-            ast::CallArg::Named { name, value } => {
+            ast::CallArg::Named(call_arg_named) => {
                 let id = out.node_auto_labelled("Named").id();
-                self.to_dot(out, name).edges(out, &id, "name");
-                self.to_dot(out, value).edges(out, &id, "value");
+                self.to_dot(out, &call_arg_named.name)
+                    .edges(out, &id, "name");
+                self.to_dot(out, &call_arg_named.value)
+                    .edges(out, &id, "value");
                 vec![id]
             }
             CallArg::PositionalType(ty) => {
@@ -573,12 +601,13 @@ impl ToDot<ast::CallArg> for AstToDot {
                 node.set("shape", "parallelogram", false);
                 vec![node.id()]
             }
-            CallArg::NamedType { name, ty } => {
+            CallArg::NamedType(call_arg_named_type) => {
                 let id = out.node_auto_labelled("Named").id();
-                self.to_dot(out, name).edges(out, &id, "name");
+                self.to_dot(out, &call_arg_named_type.name)
+                    .edges(out, &id, "name");
 
                 let ty_target = {
-                    let mut ty_node = out.node_auto_labelled(&type_to_str(ty));
+                    let mut ty_node = out.node_auto_labelled(&type_to_str(&call_arg_named_type.ty));
                     ty_node.set("shape", "parallelogram", false);
                     vec![ty_node.id()]
                 };
@@ -592,11 +621,8 @@ impl ToDot<ast::CallArg> for AstToDot {
 
 impl ToDot<ast::CallAgg> for AstToDot {
     fn to_dot(&mut self, out: &mut Scope, ast: &ast::CallAgg) -> Targets {
-        let lbl = match &ast.setq {
-            Some(ast::SetQuantifier::Distinct) => "CallAgg | Distinct",
-            _ => "CallAgg | All",
-        };
-        let id = out.node_auto_labelled(lbl).id();
+        // Set quantifier is defined in `CallAgg.args`
+        let id = out.node_auto_labelled("CallAgg").id();
 
         self.to_dot(out, &ast.func_name).edges(out, &id, "name");
         self.to_dot(out, &ast.args).edges(out, &id, "args");

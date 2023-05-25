@@ -5,3 +5,7 @@ pub mod repl;
 
 #[cfg(feature = "visualize")]
 pub mod visualize;
+
+pub mod evaluate;
+pub mod parse;
+pub mod pretty;

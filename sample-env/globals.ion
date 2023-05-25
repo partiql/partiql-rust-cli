@@ -1,0 +1,165 @@
+{
+    simple_1_col_1_group: [
+        {
+            col1: 1
+        },
+        {
+            col1: 1
+        }
+    ],
+    simple_2_col_1_group: [
+        {
+            col1: 1,
+            col2: 10
+        },
+        {
+            col1: 1,
+            col2: 10
+        }
+    ],
+    simple_1_col_2_groups: [
+        {
+            col1: 1
+        },
+        {
+            col1: 2
+        },
+        {
+            col1: 1
+        },
+        {
+            col1: 2
+        }
+    ],
+    simple_2_col_2_groups: [
+        {
+            col1: 1,
+            col2: 10
+        },
+        {
+            col1: 11,
+            col2: 110
+        },
+        {
+            col1: 1,
+            col2: 10
+        },
+        {
+            col1: 11,
+            col2: 110
+        }
+    ],
+    string_groups: [
+        {
+            col1: "a"
+        },
+        {
+            col1: "a"
+        }
+    ],
+    string_numbers: [
+        {
+            num: "1"
+        },
+        {
+            num: "2"
+        }
+    ],
+    products_sparse: [
+        {
+            productId: 1,
+            categoryId: 20,
+            regionId: 100,
+            supplierId_nulls: 10,
+            supplierId_missings: 10,
+            supplierId_mixed: 10,
+            price_nulls: 1.0,
+            price_missings: 1.0,
+            price_mixed: 1.0
+        },
+        {
+            productId: 2,
+            categoryId: 20,
+            regionId: 100,
+            supplierId_nulls: 10,
+            supplierId_missings: 10,
+            supplierId_mixed: 10,
+            price_nulls: 2.0,
+            price_missings: 2.0,
+            price_mixed: 2.0
+        },
+        {
+            productId: 3,
+            categoryId: 20,
+            regionId: 200,
+            supplierId_nulls: 10,
+            supplierId_missings: 10,
+            supplierId_mixed: 10,
+            price_nulls: 3.0,
+            price_missings: 3.0,
+            price_mixed: 3.0
+        },
+        {
+            productId: 5,
+            categoryId: 21,
+            regionId: 100,
+            supplierId_nulls: null,
+            price_nulls: null
+        },
+        {
+            productId: 4,
+            categoryId: 20,
+            regionId: 100,
+            supplierId_nulls: null,
+            supplierId_mixed: null,
+            price_nulls: null,
+            price_mixed: null
+        },
+        {
+            productId: 6,
+            categoryId: 21,
+            regionId: 100,
+            supplierId_nulls: 11,
+            supplierId_missings: 11,
+            supplierId_mixed: 11,
+            price_nulls: 4.0,
+            price_missings: 4.0,
+            price_mixed: 4.0
+        },
+        {
+            productId: 7,
+            categoryId: 21,
+            regionId: 200,
+            supplierId_nulls: 11,
+            supplierId_missings: 11,
+            supplierId_mixed: 11,
+            price_nulls: 5.0,
+            price_missings: 5.0,
+            price_mixed: 5.0
+        },
+        {
+            productId: 8,
+            categoryId: 21,
+            regionId: 200,
+            supplierId_nulls: null,
+            supplierId_mixed: null,
+            price_nulls: null,
+            price_mixed: null
+        },
+        {
+            productId: 9,
+            categoryId: 21,
+            regionId: 200,
+            supplierId_nulls: null,
+            price_nulls: null
+        },
+        {
+            productId: 10,
+            categoryId: 21,
+            regionId: 200,
+            supplierId_nulls: null,
+            supplierId_mixed: null,
+            price_nulls: null
+        }
+    ]
+}

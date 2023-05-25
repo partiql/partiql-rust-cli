@@ -19,8 +19,21 @@ pub enum Commands {
         #[clap(value_parser)]
         query: String,
     },
-    /// interactive REPL (Read Eval Print Loop) shell
-    Repl,
+    /// Evaluate the query with the optional global environment
+    Eval {
+        /// Query to evaluate
+        #[clap(value_parser)]
+        query: String,
+        /// Optional environment file (.env or .ion)
+        #[clap(short = 'E', long = "environment")]
+        environment: Option<String>,
+    },
+    /// Interactive REPL (Read Eval Print Loop) shell
+    Repl {
+        /// Optional environment file (.env or .ion)
+        #[clap(short = 'E', long = "environment")]
+        environment: Option<String>,
+    },
 }
 
 #[derive(ArgEnum, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]

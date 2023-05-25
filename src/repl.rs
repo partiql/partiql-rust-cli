@@ -1,6 +1,5 @@
 #![deny(rustdoc::broken_intra_doc_links)]
 
-use partiql_parser::ParseError;
 use rustyline::completion::Completer;
 use rustyline::config::Configurer;
 use rustyline::highlight::Highlighter;
@@ -9,7 +8,10 @@ use rustyline::hint::{Hinter, HistoryHinter};
 use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{ColorMode, Context, Helper};
 use std::borrow::Cow;
+
 use std::fs::OpenOptions;
+use std::panic;
+use std::panic::AssertUnwindSafe;
 
 use std::path::Path;
 
@@ -20,8 +22,14 @@ use syntect::util::as_24_bit_terminal_escaped;
 
 use miette::{IntoDiagnostic, Report};
 use owo_colors::OwoColorize;
+use partiql_eval::env::basic::MapBindings;
+use partiql_eval::eval::Evaluated;
+
+use partiql_value::Value;
 
 use crate::error::CLIErrors;
+use crate::evaluate::get_bindings;
+use crate::pretty::PrettyPrint;
 
 static ION_SYNTAX: &str = include_str!("ion.sublime-syntax");
 static PARTIQL_SYNTAX: &str = include_str!("partiql.sublime-syntax");
@@ -47,10 +55,11 @@ struct PartiqlHelper {
     config: PartiqlHelperConfig,
     syntaxes: SyntaxSet,
     themes: ThemeSet,
+    globals: MapBindings<Value>,
 }
 
 impl PartiqlHelper {
-    pub fn new(config: PartiqlHelperConfig) -> Result<Self, ()> {
+    pub fn new(globals: MapBindings<Value>, config: PartiqlHelperConfig) -> Result<Self, ()> {
         let ion_def = SyntaxDefinition::load_from_str(ION_SYNTAX, false, Some("ion")).unwrap();
         let partiql_def =
             SyntaxDefinition::load_from_str(PARTIQL_SYNTAX, false, Some("partiql")).unwrap();
@@ -66,6 +75,7 @@ impl PartiqlHelper {
             config,
             syntaxes,
             themes,
+            globals,
         })
     }
 }
@@ -116,40 +126,69 @@ impl Validator for PartiqlHelper {
             source = &source[4..];
         }
 
+        let source_len = source.len();
+        match source_len {
+            0 => return Ok(ValidationResult::Valid(None)),
+            _ => match &source[source_len - 1..source_len] {
+                ";" => {
+                    // TODO: there's a bug here where hitting enter from the middle of a query
+                    //  containing a semi-colon will repeat the query
+                    //  https://github.com/partiql/partiql-rust-cli/issues/10
+                    source = &source[..source_len - 1];
+                }
+                "\n" => {}
+                _ => return Ok(ValidationResult::Incomplete),
+            },
+        }
+
         let parser = partiql_parser::Parser::default();
         let result = parser.parse(source);
+        let globals = self.globals.clone();
         match result {
-            Ok(_parsed) => {
+            Ok(parsed) => {
                 #[cfg(feature = "visualize")]
                 if flag_display {
                     use crate::visualize::render::display;
-                    display(&_parsed.ast);
+                    display(&parsed.ast);
                 }
-
-                Ok(ValidationResult::Valid(None))
+                // TODO: when better error-handling ergonomics are added to partiql-lang-rust
+                //  evaluation such as Result types rather than panics. Replace following code.
+                //  Tracking issue: https://github.com/partiql/partiql-lang-rust/issues/349
+                let evaluated = panic::catch_unwind(AssertUnwindSafe(|| {
+                    let lowered = partiql_logical_planner::lower(&parsed);
+                    let mut plan = partiql_eval::plan::EvaluatorPlanner.compile(&lowered);
+                    plan.execute_mut(globals)
+                }));
+                match evaluated {
+                    Ok(Ok(Evaluated { result: v })) => {
+                        let mut pretty_v = String::new();
+                        v.pretty(&mut pretty_v).expect("TODO: panic message");
+                        println!("\n==='\n{pretty_v}");
+                        Ok(ValidationResult::Valid(None))
+                    }
+                    Ok(Err(e)) => {
+                        let err = Report::new(CLIErrors::from_eval_error(e, source));
+                        Ok(ValidationResult::Invalid(Some(format!("\n\n{err:?}"))))
+                    }
+                    Err(panic_eval_error) => Ok(ValidationResult::Invalid(Some(format!(
+                        "\n\n{panic_eval_error:?}"
+                    )))),
+                }
             }
             Err(e) => {
-                if e.errors
-                    .iter()
-                    .any(|err| matches!(err, ParseError::UnexpectedEndOfInput))
-                {
-                    // TODO For now, this is what allows you to do things like hit `<ENTER>` and continue writing the query on the next line in the middle of a query.
-                    // TODO we should probably do something more ergonomic. Perhaps require a `;` or two newlines to end?
-                    Ok(ValidationResult::Incomplete)
-                } else {
-                    let err = Report::new(CLIErrors::from_parser_error(e));
-                    Ok(ValidationResult::Invalid(Some(format!("\n\n{:?}", err))))
-                }
+                let err = Report::new(CLIErrors::from_parser_error(e));
+                Ok(ValidationResult::Invalid(Some(format!("\n\n{err:?}"))))
             }
         }
     }
 }
 
-pub fn repl() -> miette::Result<()> {
+pub fn repl(environment: &Option<String>) -> miette::Result<()> {
+    let bindings = get_bindings(environment)?;
     let mut rl = rustyline::Editor::<PartiqlHelper>::new().into_diagnostic()?;
     rl.set_color_mode(ColorMode::Forced);
     rl.set_helper(Some(
-        PartiqlHelper::new(PartiqlHelperConfig::infer()).unwrap(),
+        PartiqlHelper::new(bindings, PartiqlHelperConfig::infer()).unwrap(),
     ));
     let expanded = shellexpand::tilde("~/partiql_cli.history").to_string();
     let history_path = Path::new(&expanded);
@@ -167,10 +206,10 @@ pub fn repl() -> miette::Result<()> {
     println!("===============================");
 
     loop {
-        let readline = rl.readline(">> ");
+        let readline = rl.readline("PartiQL> ");
         match readline {
             Ok(line) => {
-                println!("{}", "Parse OK!".green());
+                println!("\n---\n{}", "OK!".green());
                 rl.add_history_entry(line);
             }
             Err(_) => {
