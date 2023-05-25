@@ -10,8 +10,6 @@ use rustyline::{ColorMode, Context, Helper};
 use std::borrow::Cow;
 
 use std::fs::OpenOptions;
-use std::panic;
-use std::panic::AssertUnwindSafe;
 
 use std::path::Path;
 
@@ -28,7 +26,7 @@ use partiql_eval::eval::Evaluated;
 use partiql_value::Value;
 
 use crate::error::CLIErrors;
-use crate::evaluate::get_bindings;
+use crate::evaluate::{evaluate_parsed, get_bindings};
 use crate::pretty::PrettyPrint;
 
 static ION_SYNTAX: &str = include_str!("ion.sublime-syntax");
@@ -151,28 +149,19 @@ impl Validator for PartiqlHelper {
                     use crate::visualize::render::display;
                     display(&parsed.ast);
                 }
-                // TODO: when better error-handling ergonomics are added to partiql-lang-rust
-                //  evaluation such as Result types rather than panics. Replace following code.
-                //  Tracking issue: https://github.com/partiql/partiql-lang-rust/issues/349
-                let evaluated = panic::catch_unwind(AssertUnwindSafe(|| {
-                    let lowered = partiql_logical_planner::lower(&parsed);
-                    let mut plan = partiql_eval::plan::EvaluatorPlanner.compile(&lowered);
-                    plan.execute_mut(globals)
-                }));
+
+                let evaluated = evaluate_parsed(&parsed, globals);
                 match evaluated {
-                    Ok(Ok(Evaluated { result: v })) => {
+                    Ok(Evaluated { result: v }) => {
                         let mut pretty_v = String::new();
                         v.pretty(&mut pretty_v).expect("TODO: panic message");
                         println!("\n==='\n{pretty_v}");
                         Ok(ValidationResult::Valid(None))
                     }
-                    Ok(Err(e)) => {
-                        let err = Report::new(CLIErrors::from_eval_error(e, source));
+                    Err(e) => {
+                        let err = Report::new(e);
                         Ok(ValidationResult::Invalid(Some(format!("\n\n{err:?}"))))
                     }
-                    Err(panic_eval_error) => Ok(ValidationResult::Invalid(Some(format!(
-                        "\n\n{panic_eval_error:?}"
-                    )))),
                 }
             }
             Err(e) => {

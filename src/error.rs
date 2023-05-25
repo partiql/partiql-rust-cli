@@ -146,6 +146,9 @@ impl CLIError {
             EvaluationError::InvalidEvaluationPlan(_s) => CLIError::InternalCompilerError {
                 src: source.to_string(),
             },
+            _ => CLIError::InternalCompilerError {
+                src: source.to_string(),
+            },
         }
     }
 
