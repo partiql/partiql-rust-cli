@@ -52,6 +52,8 @@ console = "0.15"
 indicatif = "0.17"
 dialoguer = "0.10"
 
+comfy-table = "6"
+
 thiserror = "1.*"
 miette = { version ="5.*", features = ["fancy"] }
 clap = { version = "3.*", features = ["derive"] }
