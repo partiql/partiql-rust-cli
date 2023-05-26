@@ -24,6 +24,9 @@ pub enum Commands {
         /// Query to evaluate
         #[clap(value_parser)]
         query: String,
+        /// Output format
+        #[clap(short = 'f', long = "format", value_enum, default_value_t=OutputFormat::Partiql)]
+        output: OutputFormat,
         /// Optional environment file (.env or .ion)
         #[clap(short = 'E', long = "environment")]
         environment: Option<String>,
@@ -34,6 +37,16 @@ pub enum Commands {
         #[clap(short = 'E', long = "environment")]
         environment: Option<String>,
     },
+}
+
+#[derive(ArgEnum, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum OutputFormat {
+    /// PartiQL
+    Partiql,
+    /// Ion Text, one top-level item per line
+    IonLines,
+    /// Ion Text, pretty printed
+    IonPretty,
 }
 
 #[derive(ArgEnum, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
