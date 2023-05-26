@@ -1,18 +1,43 @@
 use crate::error::CLIErrors;
+
+use partiql_catalog::{Extension, PartiqlCatalog};
 use partiql_eval::env::basic::MapBindings;
 use partiql_eval::eval::Evaluated;
-use partiql_value::ion::parse_ion;
+use partiql_extension_ion::decode::IonDecoderConfig;
+use partiql_extension_ion::Encoding;
+use partiql_extension_ion_functions::IonExtension;
+use partiql_parser::Parsed;
 use partiql_value::Value;
 use std::fs;
 use std::path::Path;
 
+fn catalog() -> PartiqlCatalog {
+    let mut catalog = PartiqlCatalog::default();
+    let ext = IonExtension {};
+    ext.load(&mut catalog)
+        .expect("ion extension load to succeed");
+    catalog
+}
+
 pub fn evaluate(query: &str, globals: MapBindings<Value>) -> Result<Evaluated, CLIErrors> {
     let parser = partiql_parser::Parser::default();
     let parsed = parser.parse(query);
-    let lowered = partiql_logical_planner::lower(&parsed.expect("parse"));
-    let mut plan = partiql_eval::plan::EvaluatorPlanner.compile(&lowered);
+    evaluate_parsed(&parsed.expect("parse"), globals)
+}
+
+pub fn evaluate_parsed(
+    query: &Parsed,
+    globals: MapBindings<Value>,
+) -> Result<Evaluated, CLIErrors> {
+    let catalog = catalog();
+    let planner = partiql_logical_planner::LogicalPlanner::new(&catalog);
+    let lowered = planner.lower(query).expect("lower");
+
+    let mut compiler = partiql_eval::plan::EvaluatorPlanner::new(&catalog);
+    let mut plan = compiler.compile(&lowered).expect("compile");
+
     plan.execute_mut(globals)
-        .map_err(|err| CLIErrors::from_eval_error(err, query))
+        .map_err(|err| CLIErrors::from_eval_error(err, query.text))
 }
 
 pub fn get_bindings(environment: &Option<String>) -> Result<MapBindings<Value>, CLIErrors> {
@@ -36,7 +61,17 @@ pub fn get_bindings(environment: &Option<String>) -> Result<MapBindings<Value>, 
                     Some("ion") => {
                         let buf = fs::read_to_string(path)
                             .map_err(|err| CLIErrors::from_io_error(err, ""))?;
-                        let env = parse_ion(&buf);
+                        let reader = ion_rs::ReaderBuilder::new().build(buf).expect("ion reader");
+                        let mut decoder = partiql_extension_ion::decode::IonDecoderBuilder::new(
+                            IonDecoderConfig::default().with_mode(Encoding::PartiqlEncodedAsIon),
+                        )
+                        .build(reader)
+                        .expect("expected ion file");
+                        let env = decoder
+                            .next()
+                            .expect("expected single environment value in ion stream")
+                            .expect("expected single environment value in ion stream");
+
                         match env {
                             Value::Tuple(t) => MapBindings::from(*t),
                             _ => panic!("Expected a struct containing the input environment"),
