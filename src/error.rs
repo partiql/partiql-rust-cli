@@ -1,5 +1,5 @@
 use miette::{Diagnostic, LabeledSpan, SourceCode};
-use partiql_eval::eval::{EvalErr, EvaluationError};
+use partiql_eval::error::{EvalErr, EvaluationError};
 use partiql_parser::{ParseError, ParserError};
 use partiql_source_map::location::{ByteOffset, BytePosition, Location};
 use std::io::Error;
