@@ -47,6 +47,8 @@ pub enum OutputFormat {
     IonLines,
     /// Ion Text, pretty printed
     IonPretty,
+    /// Table
+    Table,
 }
 
 #[derive(ArgEnum, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]

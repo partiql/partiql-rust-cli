@@ -7,5 +7,6 @@ pub mod repl;
 pub mod visualize;
 
 pub mod evaluate;
+pub mod formatting;
 pub mod parse;
 pub mod pretty;

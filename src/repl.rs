@@ -10,11 +10,10 @@ use rustyline::{ColorMode, Context, Helper};
 use std::borrow::Cow;
 
 use std::fs::OpenOptions;
+use std::io::Write;
 
-use console::Term;
 use indicatif::{HumanDuration, ProgressBar};
 use std::path::Path;
-use std::thread;
 use std::time::{Duration, SystemTime};
 
 use syntect::easy::HighlightLines;
@@ -27,11 +26,12 @@ use owo_colors::OwoColorize;
 use partiql_eval::env::basic::MapBindings;
 use partiql_eval::eval::Evaluated;
 
+use crate::args::OutputFormat;
 use partiql_value::Value;
 
 use crate::error::CLIErrors;
 use crate::evaluate::{evaluate_parsed, get_bindings};
-use crate::pretty::PrettyPrint;
+use crate::formatting::print_value;
 
 static ION_SYNTAX: &str = include_str!("ion.sublime-syntax");
 static PARTIQL_SYNTAX: &str = include_str!("partiql.sublime-syntax");
@@ -128,6 +128,24 @@ impl Validator for PartiqlHelper {
             source = &source[4..];
         }
 
+        let mut output = OutputFormat::Partiql;
+        if source.starts_with("\\table") {
+            output = OutputFormat::Table;
+            source = &source[6..];
+        }
+        if source.starts_with("\\ion-lines") {
+            output = OutputFormat::IonLines;
+            source = &source[10..];
+        }
+        if source.starts_with("\\ion-pretty") {
+            output = OutputFormat::IonPretty;
+            source = &source[11..];
+        }
+        if source.starts_with("\\partiql") {
+            output = OutputFormat::Partiql;
+            source = &source[8..];
+        }
+
         let source_len = source.len();
         match source_len {
             0 => return Ok(ValidationResult::Valid(None)),
@@ -154,7 +172,10 @@ impl Validator for PartiqlHelper {
                     display(&parsed.ast);
                 }
 
-                let mut spinner = ProgressBar::new_spinner();
+                println!();
+                std::io::stdout().flush();
+                std::io::stderr().flush();
+                let spinner = ProgressBar::new_spinner();
                 spinner.enable_steady_tick(Duration::from_millis(100));
                 spinner.set_message("Query running");
 
@@ -167,9 +188,11 @@ impl Validator for PartiqlHelper {
                 match evaluated {
                     Ok(Evaluated { result: v }) => {
                         spinner.finish_with_message(format!("Query finished in {duration}"));
-                        let mut pretty_v = String::new();
-                        v.pretty(&mut pretty_v).expect("TODO: panic message");
-                        println!("\n==='\n{pretty_v}");
+                        println!("\n==='\n");
+                        print_value(&output, &v);
+                        println!();
+                        std::io::stdout().flush();
+                        std::io::stderr().flush();
                         Ok(ValidationResult::Valid(None))
                     }
                     Err(e) => {
