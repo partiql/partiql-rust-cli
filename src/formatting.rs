@@ -67,7 +67,6 @@ pub fn print_value(format: &OutputFormat, value: &Value) {
                                 todo!("error mapping key to column")
                             }
                             Some(idx) => {
-                                //
                                 let col = Cell::new(partiql_table_pretty(v));
                                 let col = match v {
                                     // Color Null & Missing red
