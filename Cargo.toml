@@ -48,6 +48,9 @@ supports-hyperlinks = "1.*"
 termbg = "0.4.*"
 shellexpand = "2.*"
 
+console = "0.15"
+indicatif = "0.17"
+dialoguer = "0.10"
 
 thiserror = "1.*"
 miette = { version ="5.*", features = ["fancy"] }

@@ -11,7 +11,11 @@ use std::borrow::Cow;
 
 use std::fs::OpenOptions;
 
+use console::Term;
+use indicatif::{HumanDuration, ProgressBar};
 use std::path::Path;
+use std::thread;
+use std::time::{Duration, SystemTime};
 
 use syntect::easy::HighlightLines;
 use syntect::highlighting::{Style, ThemeSet};
@@ -150,15 +154,26 @@ impl Validator for PartiqlHelper {
                     display(&parsed.ast);
                 }
 
+                let mut spinner = ProgressBar::new_spinner();
+                spinner.enable_steady_tick(Duration::from_millis(100));
+                spinner.set_message("Query running");
+
+                let start = SystemTime::now();
                 let evaluated = evaluate_parsed(&parsed, globals);
+                let end = SystemTime::now();
+                let duration = end.duration_since(start).unwrap();
+                let duration = HumanDuration(duration);
+
                 match evaluated {
                     Ok(Evaluated { result: v }) => {
+                        spinner.finish_with_message(format!("Query finished in {duration}"));
                         let mut pretty_v = String::new();
                         v.pretty(&mut pretty_v).expect("TODO: panic message");
                         println!("\n==='\n{pretty_v}");
                         Ok(ValidationResult::Valid(None))
                     }
                     Err(e) => {
+                        spinner.finish_with_message(format!("Query failed after {duration}"));
                         let err = Report::new(e);
                         Ok(ValidationResult::Invalid(Some(format!("\n\n{err:?}"))))
                     }
