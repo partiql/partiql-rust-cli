@@ -29,6 +29,7 @@ pub(crate) fn repl_config() -> ReplConfig {
     let config_dir = dirs.config_dir();
     let cache_dir = dirs.cache_dir();
     std::fs::create_dir_all(&config_dir).expect("create config dir");
+    std::fs::create_dir_all(&cache_dir).expect("create cache dir");
 
     let mut conf = config_dir.to_path_buf();
     conf.push("partiql-cli.toml");
