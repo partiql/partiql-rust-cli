@@ -1,0 +1,7 @@
+[repl]
+
+# One of: "dark" or "light"
+#theme = "dark"
+
+# Same as the possible values for the `eval` command's `-f` flag
+output_format = "partiql"

@@ -1,5 +1,6 @@
 use miette::{Diagnostic, LabeledSpan, SourceCode};
-use partiql_eval::error::{EvalErr, EvaluationError};
+use partiql_eval::error::{EvalErr, EvaluationError, PlanErr, PlanningError};
+use partiql_logical_planner::error::{LowerError, LoweringError};
 use partiql_parser::{ParseError, ParserError};
 use partiql_source_map::location::{ByteOffset, BytePosition, Location};
 use std::io::Error;
@@ -14,34 +15,54 @@ pub struct CLIErrors {
     related: Vec<CLIError>,
 }
 
-impl CLIErrors {
-    pub fn from_parser_error(err: ParserError) -> Self {
+impl From<(&str, std::io::Error)> for CLIErrors {
+    fn from((query, err): (&str, Error)) -> Self {
+        CLIErrors {
+            query: query.to_string(),
+            related: vec![err.into()],
+        }
+    }
+}
+
+impl<'a> From<ParserError<'a>> for CLIErrors {
+    fn from(err: ParserError<'a>) -> Self {
         let query = err.text.to_string();
 
         let related = err
             .errors
             .into_iter()
-            .map(|e| CLIError::from_parse_error(e, &query))
+            .map(|e| (query.as_str(), e).into())
             .collect();
         CLIErrors { query, related }
     }
+}
 
-    pub fn from_eval_error(err: EvalErr, query: &str) -> Self {
-        let related = err
-            .errors
-            .into_iter()
-            .map(|e| CLIError::from_eval_error(e, query))
-            .collect();
+impl From<(&str, LoweringError)> for CLIErrors {
+    fn from((query, err): (&str, LoweringError)) -> Self {
+        let related = err.errors.into_iter().map(|e| (query, e).into()).collect();
         CLIErrors {
             query: query.to_string(),
             related,
         }
     }
+}
 
-    pub fn from_io_error(err: Error, query: &str) -> Self {
+impl From<(&str, EvalErr)> for CLIErrors {
+    fn from((query, err): (&str, EvalErr)) -> Self {
+        let related = err.errors.into_iter().map(|e| (query, e).into()).collect();
         CLIErrors {
             query: query.to_string(),
-            related: vec![CLIError::from_io_error(err)],
+            related,
+        }
+    }
+}
+
+impl From<(&str, PlanErr)> for CLIErrors {
+    fn from((query, err): (&str, PlanErr)) -> Self {
+        let related = err.errors.into_iter().map(|e| (query, e).into()).collect();
+        CLIErrors {
+            query: query.to_string(),
+            related,
         }
     }
 }
@@ -54,11 +75,22 @@ pub enum CLIError {
         msg: String,
         loc: Location<BytePosition>,
     },
-    #[error("Internal Compiler Error - please report this (https://github.com/partiql/partiql-lang-rust/issues).")]
-    InternalCompilerError { src: String },
+
+    #[error("PartiQL compile error:")]
+    CompileError {
+        src: String,
+        msg: String,
+        // TODO loc: Location<BytePosition>,
+    },
+
+    #[error("Internal Compiler Error: `{msg}`\nplease report this (https://github.com/partiql/partiql-lang-rust/issues).")]
+    InternalCompilerError { src: String, msg: String },
 
     #[error("I/O Error reading input environment")]
     IOReadError,
+
+    #[error("Unknown error: {0}")]
+    UnknownError(String),
 }
 
 impl Diagnostic for CLIError {
@@ -67,6 +99,8 @@ impl Diagnostic for CLIError {
             CLIError::SyntaxError { src, .. } => Some(src),
             CLIError::InternalCompilerError { src, .. } => Some(src),
             CLIError::IOReadError => None,
+            CLIError::CompileError { msg, src } => Some(src),
+            CLIError::UnknownError(_) => None,
         }
     }
 
@@ -81,12 +115,20 @@ impl Diagnostic for CLIError {
             }
             CLIError::InternalCompilerError { .. } => None,
             CLIError::IOReadError => None,
+            CLIError::CompileError { .. } => None,
+            CLIError::UnknownError(_) => None,
         }
     }
 }
 
-impl CLIError {
-    pub fn from_parse_error(err: ParseError, source: &str) -> Self {
+impl From<std::io::Error> for CLIError {
+    fn from(err: Error) -> Self {
+        CLIError::IOReadError
+    }
+}
+
+impl<'a> From<(&str, ParseError<'a>)> for CLIError {
+    fn from((source, err): (&str, ParseError<'a>)) -> Self {
         match err {
             ParseError::SyntaxError(partiql_source_map::location::Located { inner, location }) => {
                 CLIError::SyntaxError {
@@ -118,7 +160,8 @@ impl CLIError {
                     end: location,
                 },
             },
-            ParseError::IllegalState(_location) => CLIError::InternalCompilerError {
+            ParseError::IllegalState(error) => CLIError::InternalCompilerError {
+                msg: format!("Parser Illegal State: {error}"),
                 src: source.to_string(),
             },
             ParseError::UnexpectedEndOfInput => {
@@ -135,24 +178,63 @@ impl CLIError {
                     },
                 }
             }
-            _ => {
-                todo!("Not yet handled {:?}", err);
-            }
+            other => CLIError::UnknownError(other.to_string()),
         }
     }
+}
 
-    pub fn from_eval_error(err: EvaluationError, source: &str) -> Self {
+impl From<(&str, LowerError)> for CLIError {
+    fn from((source, err): (&str, LowerError)) -> Self {
         match err {
-            EvaluationError::InvalidEvaluationPlan(_s) => CLIError::InternalCompilerError {
+            LowerError::IllegalState(error) => CLIError::InternalCompilerError {
+                msg: format!("Compiler Illegal State: {error}"),
                 src: source.to_string(),
             },
-            _ => CLIError::InternalCompilerError {
+            LowerError::Literal { literal, error } => CLIError::CompileError {
+                msg: format!(
+                    "Compiler literal value error. Literal: `{literal}`. Error: `{error}`"
+                ),
                 src: source.to_string(),
             },
+            LowerError::InvalidNumberOfArguments(error) => CLIError::CompileError {
+                msg: format!("Compiler function error: Invalid number of args. Error: `{error}`"),
+                src: source.to_string(),
+            },
+            LowerError::UnsupportedFunction(error) => CLIError::CompileError {
+                msg: format!("Compiler function error: Unsupported function. Error: `{error}`"),
+                src: source.to_string(),
+            },
+            LowerError::UnsupportedAggregationFunction(error) => CLIError::CompileError {
+                msg: format!(
+                    "Compiler function error: Unsupported aggregate function. Error: `{error}`"
+                ),
+                src: source.to_string(),
+            },
+            other => CLIError::UnknownError(other.to_string()),
         }
     }
+}
 
-    pub fn from_io_error(_err: Error) -> Self {
-        CLIError::IOReadError
+impl From<(&str, PlanningError)> for CLIError {
+    fn from((source, err): (&str, PlanningError)) -> Self {
+        match err {
+            PlanningError::IllegalState(error) => CLIError::InternalCompilerError {
+                msg: format!("Planner Illegal State: {error}"),
+                src: source.to_string(),
+            },
+            other => CLIError::UnknownError(other.to_string()),
+        }
+    }
+}
+
+impl From<(&str, EvaluationError)> for CLIError {
+    fn from((query, err): (&str, EvaluationError)) -> Self {
+        match err {
+            EvaluationError::InvalidEvaluationPlan(error) => CLIError::InternalCompilerError {
+                msg: format!("Compiler function error: Invalid Plan. Error: `{error}`"),
+                src: query.to_string(),
+            },
+            other => CLIError::UnknownError(other.to_string()),
+        }
     }
 }

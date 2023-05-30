@@ -39,7 +39,7 @@ pub enum Commands {
     },
 }
 
-#[derive(ArgEnum, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(ArgEnum, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum OutputFormat {
     /// PartiQL
     Partiql,
@@ -51,7 +51,7 @@ pub enum OutputFormat {
     Table,
 }
 
-#[derive(ArgEnum, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(ArgEnum, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Format {
     /// JSON
     Json,

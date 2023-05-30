@@ -9,11 +9,12 @@ use rustyline::validate::{ValidationContext, ValidationResult, Validator};
 use rustyline::{ColorMode, Context, Helper};
 use std::borrow::Cow;
 
-use std::fs::OpenOptions;
 use std::io::Write;
 
+use clap::ArgEnum;
+use config::Config;
 use indicatif::{HumanDuration, ProgressBar};
-use std::path::Path;
+use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
 use syntect::easy::HighlightLines;
@@ -32,27 +33,37 @@ use partiql_value::Value;
 use crate::error::CLIErrors;
 use crate::evaluate::{evaluate_parsed, get_bindings};
 use crate::formatting::print_value;
-
-static ION_SYNTAX: &str = include_str!("ion.sublime-syntax");
-static PARTIQL_SYNTAX: &str = include_str!("partiql.sublime-syntax");
+use crate::repl::config::{repl_config, ReplConfig, ION_SYNTAX, PARTIQL_SYNTAX};
 
 struct PartiqlHelperConfig {
-    dark_theme: bool,
+    config: Config,
+    history_path: PathBuf,
 }
 
 impl PartiqlHelperConfig {
-    pub fn infer() -> Self {
-        const TERM_TIMEOUT_MILLIS: u64 = 20;
-        let timeout = std::time::Duration::from_millis(TERM_TIMEOUT_MILLIS);
-        let theme = termbg::theme(timeout);
-        let dark_theme = match theme {
-            Ok(termbg::Theme::Light) => false,
-            Ok(termbg::Theme::Dark) => true,
-            _ => true,
-        };
-        PartiqlHelperConfig { dark_theme }
+    pub fn new(config: Config, history_path: PathBuf) -> Self {
+        PartiqlHelperConfig {
+            config: config,
+            history_path: history_path,
+        }
     }
 }
+
+impl From<ReplConfig> for PartiqlHelperConfig {
+    fn from(
+        ReplConfig {
+            config,
+            history_path,
+            ..
+        }: ReplConfig,
+    ) -> Self {
+        PartiqlHelperConfig {
+            config,
+            history_path,
+        }
+    }
+}
+
 struct PartiqlHelper {
     config: PartiqlHelperConfig,
     syntaxes: SyntaxSet,
@@ -103,7 +114,13 @@ impl Highlighter for PartiqlHelper {
             .find_syntax_by_extension("partiql")
             .unwrap()
             .clone();
-        let theme = if self.config.dark_theme {
+        let theme: String = self
+            .config
+            .config
+            .get("repl.theme")
+            .expect("config repl.theme");
+        let dark_theme = theme == "dark";
+        let theme = if dark_theme {
             &self.themes.themes["Solarized (dark)"]
         } else {
             &self.themes.themes["Solarized (light)"]
@@ -128,7 +145,14 @@ impl Validator for PartiqlHelper {
             source = &source[4..];
         }
 
-        let mut output = OutputFormat::Partiql;
+        let config_of: Result<String, _> = self.config.config.get("repl.output_format");
+        let mut output = if let Ok(Ok(fmt)) = config_of.map(|of| OutputFormat::from_str(&of, true))
+        {
+            fmt
+        } else {
+            OutputFormat::Partiql
+        };
+
         if source.starts_with("\\table") {
             output = OutputFormat::Table;
             source = &source[6..];
@@ -203,7 +227,7 @@ impl Validator for PartiqlHelper {
                 }
             }
             Err(e) => {
-                let err = Report::new(CLIErrors::from_parser_error(e));
+                let err = Report::new(CLIErrors::from(e));
                 Ok(ValidationResult::Invalid(Some(format!("\n\n{err:?}"))))
             }
         }
@@ -212,20 +236,14 @@ impl Validator for PartiqlHelper {
 
 pub fn repl(environment: &Option<String>) -> miette::Result<()> {
     let bindings = get_bindings(environment)?;
+
+    let config = PartiqlHelperConfig::from(repl_config());
+    let history_path = config.history_path.clone();
+
     let mut rl = rustyline::Editor::<PartiqlHelper>::new().into_diagnostic()?;
     rl.set_color_mode(ColorMode::Forced);
-    rl.set_helper(Some(
-        PartiqlHelper::new(bindings, PartiqlHelperConfig::infer()).unwrap(),
-    ));
-    let expanded = shellexpand::tilde("~/partiql_cli.history").to_string();
-    let history_path = Path::new(&expanded);
-    OpenOptions::new()
-        .write(true)
-        .create(true)
-        .append(true)
-        .open(history_path)
-        .expect("history file create if not exists");
-    rl.load_history(history_path).expect("history load");
+    rl.set_helper(Some(PartiqlHelper::new(bindings, config).unwrap()));
+    rl.load_history(&history_path).expect("history load");
 
     println!("===============================");
     println!("PartiQL REPL");
@@ -241,7 +259,7 @@ pub fn repl(environment: &Option<String>) -> miette::Result<()> {
             }
             Err(_) => {
                 println!("Exiting...");
-                rl.append_history(history_path).expect("append history");
+                rl.append_history(&history_path).expect("append history");
                 break;
             }
         }

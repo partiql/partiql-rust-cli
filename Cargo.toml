@@ -54,6 +54,9 @@ dialoguer = "0.10"
 
 comfy-table = "6"
 
+directories = "5"
+config = "0.13"
+
 thiserror = "1.*"
 miette = { version ="5.*", features = ["fancy"] }
 clap = { version = "3.*", features = ["derive"] }
