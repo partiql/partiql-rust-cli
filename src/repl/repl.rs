@@ -29,50 +29,24 @@ use partiql_eval::eval::Evaluated;
 
 use crate::args::OutputFormat;
 use partiql_value::Value;
+use tracing::field::DisplayValue;
+use tracing::{error, info, span, trace, Level};
+use uuid::Uuid;
 
 use crate::error::CLIErrors;
 use crate::evaluate::{evaluate_parsed, get_bindings};
 use crate::formatting::print_value;
 use crate::repl::config::{repl_config, ReplConfig, ION_SYNTAX, PARTIQL_SYNTAX};
 
-struct PartiqlHelperConfig {
-    config: Config,
-    history_path: PathBuf,
-}
-
-impl PartiqlHelperConfig {
-    pub fn new(config: Config, history_path: PathBuf) -> Self {
-        PartiqlHelperConfig {
-            config: config,
-            history_path: history_path,
-        }
-    }
-}
-
-impl From<ReplConfig> for PartiqlHelperConfig {
-    fn from(
-        ReplConfig {
-            config,
-            history_path,
-            ..
-        }: ReplConfig,
-    ) -> Self {
-        PartiqlHelperConfig {
-            config,
-            history_path,
-        }
-    }
-}
-
 struct PartiqlHelper {
-    config: PartiqlHelperConfig,
+    config: ReplConfig,
     syntaxes: SyntaxSet,
     themes: ThemeSet,
     globals: MapBindings<Value>,
 }
 
 impl PartiqlHelper {
-    pub fn new(globals: MapBindings<Value>, config: PartiqlHelperConfig) -> Result<Self, ()> {
+    pub fn new(globals: MapBindings<Value>, config: ReplConfig) -> Result<Self, ()> {
         let ion_def = SyntaxDefinition::load_from_str(ION_SYNTAX, false, Some("ion")).unwrap();
         let partiql_def =
             SyntaxDefinition::load_from_str(PARTIQL_SYNTAX, false, Some("partiql")).unwrap();
@@ -135,11 +109,12 @@ impl Highlighter for PartiqlHelper {
         true
     }
 }
-
 impl Validator for PartiqlHelper {
     fn validate(&self, ctx: &mut ValidationContext) -> rustyline::Result<ValidationResult> {
-        // TODO remove this command parsing hack do something better
+        let request_id = Uuid::new_v4();
         let mut source = ctx.input();
+
+        // TODO remove this command parsing hack do something better
         let flag_display = source.starts_with("\\ast");
         if flag_display {
             source = &source[4..];
@@ -184,61 +159,82 @@ impl Validator for PartiqlHelper {
                 _ => return Ok(ValidationResult::Incomplete),
             },
         }
+        span!(
+            Level::INFO,
+            "validate",
+            %request_id,
+        )
+        .in_scope(|| {
+            info!(query = &source, "Validating");
 
-        let parser = partiql_parser::Parser::default();
-        let result = parser.parse(source);
-        let globals = self.globals.clone();
-        match result {
-            Ok(parsed) => {
-                #[cfg(feature = "visualize")]
-                if flag_display {
-                    use crate::visualize::render::display;
-                    display(&parsed.ast);
+            info!("Parsing");
+            let parser = partiql_parser::Parser::default();
+            let result = parser.parse(source);
+            let globals = self.globals.clone();
+            match result {
+                Ok(parsed) => {
+                    #[cfg(feature = "visualize")]
+                    if flag_display {
+                        use crate::visualize::render::display;
+                        display(&parsed.ast);
+                    }
+
+                    println!();
+                    std::io::stdout().flush();
+                    std::io::stderr().flush();
+                    let spinner = ProgressBar::new_spinner();
+                    spinner.enable_steady_tick(Duration::from_millis(100));
+                    spinner.set_message("Query running");
+
+                    info!("Evaluating");
+                    let start = SystemTime::now();
+                    let evaluated = evaluate_parsed(&parsed, globals);
+                    let end = SystemTime::now();
+                    let duration = end.duration_since(start).unwrap();
+                    let duration = HumanDuration(duration);
+
+                    match evaluated {
+                        Ok(Evaluated { result: v }) => {
+                            info!("Evaluation finished in {duration}");
+                            spinner.finish_with_message(format!("Query finished in {duration}"));
+                            println!("\n==='\n");
+
+                            info!(?output, "Printing");
+                            print_value(&output, &v);
+                            println!();
+                            std::io::stdout().flush();
+                            std::io::stderr().flush();
+                            Ok(ValidationResult::Valid(None))
+                        }
+                        Err(e) => {
+                            error!("Evaluation failed after {duration} due to {e}");
+                            spinner.finish_with_message(format!("Query failed after {duration}"));
+                            let err = Report::new(e);
+                            Ok(ValidationResult::Invalid(Some(format!("\n\n{err:?}"))))
+                        }
+                    }
                 }
-
-                println!();
-                std::io::stdout().flush();
-                std::io::stderr().flush();
-                let spinner = ProgressBar::new_spinner();
-                spinner.enable_steady_tick(Duration::from_millis(100));
-                spinner.set_message("Query running");
-
-                let start = SystemTime::now();
-                let evaluated = evaluate_parsed(&parsed, globals);
-                let end = SystemTime::now();
-                let duration = end.duration_since(start).unwrap();
-                let duration = HumanDuration(duration);
-
-                match evaluated {
-                    Ok(Evaluated { result: v }) => {
-                        spinner.finish_with_message(format!("Query finished in {duration}"));
-                        println!("\n==='\n");
-                        print_value(&output, &v);
-                        println!();
-                        std::io::stdout().flush();
-                        std::io::stderr().flush();
-                        Ok(ValidationResult::Valid(None))
-                    }
-                    Err(e) => {
-                        spinner.finish_with_message(format!("Query failed after {duration}"));
-                        let err = Report::new(e);
-                        Ok(ValidationResult::Invalid(Some(format!("\n\n{err:?}"))))
-                    }
+                Err(e) => {
+                    error!("Parse failed due to {e:?}");
+                    let err = Report::new(CLIErrors::from(e));
+                    Ok(ValidationResult::Invalid(Some(format!("\n\n{err:?}"))))
                 }
             }
-            Err(e) => {
-                let err = Report::new(CLIErrors::from(e));
-                Ok(ValidationResult::Invalid(Some(format!("\n\n{err:?}"))))
-            }
-        }
+        })
     }
 }
 
 pub fn repl(environment: &Option<String>) -> miette::Result<()> {
-    let bindings = get_bindings(environment)?;
-
-    let config = PartiqlHelperConfig::from(repl_config());
+    let config = repl_config();
     let history_path = config.history_path.clone();
+
+    let mut log_dir = config.cache_dir.clone();
+    log_dir.push("logs");
+    let file_appender = tracing_appender::rolling::daily(&log_dir, "partiql-cli.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    tracing_subscriber::fmt().with_writer(non_blocking).init();
+
+    let bindings = get_bindings(environment)?;
 
     let mut rl = rustyline::Editor::<PartiqlHelper>::new().into_diagnostic()?;
     rl.set_color_mode(ColorMode::Forced);
@@ -250,7 +246,7 @@ pub fn repl(environment: &Option<String>) -> miette::Result<()> {
     println!("CTRL-D on an empty line to quit");
     println!("===============================");
 
-    loop {
+    span!(Level::INFO, "repl",).in_scope(|| loop {
         let readline = rl.readline("PartiQL> ");
         match readline {
             Ok(line) => {
@@ -263,7 +259,7 @@ pub fn repl(environment: &Option<String>) -> miette::Result<()> {
                 break;
             }
         }
-    }
+    });
 
     Ok(())
 }

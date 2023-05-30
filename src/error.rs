@@ -122,7 +122,7 @@ impl Diagnostic for CLIError {
 }
 
 impl From<std::io::Error> for CLIError {
-    fn from(err: Error) -> Self {
+    fn from(_: Error) -> Self {
         CLIError::IOReadError
     }
 }
