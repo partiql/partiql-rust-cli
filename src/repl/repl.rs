@@ -34,7 +34,7 @@ use tracing::{error, info, span, trace, Level};
 use uuid::Uuid;
 
 use crate::error::CLIErrors;
-use crate::evaluate::{evaluate_parsed, get_bindings};
+use crate::evaluate::{get_bindings, Compiler};
 use crate::formatting::print_value;
 use crate::repl::config::{repl_config, ReplConfig, ION_SYNTAX, PARTIQL_SYNTAX};
 
@@ -115,9 +115,14 @@ impl Validator for PartiqlHelper {
         let mut source = ctx.input();
 
         // TODO remove this command parsing hack do something better
-        let flag_display = source.starts_with("\\ast");
-        if flag_display {
-            source = &source[4..];
+        let flag_ast = source.starts_with("\\ast");
+        if flag_ast {
+            source = source.trim_start_matches("\\ast");
+        }
+
+        let flag_plan = source.starts_with("\\plan");
+        if flag_plan {
+            source = source.trim_start_matches("\\plan");
         }
 
         let config_of: Result<String, _> = self.config.config.get("repl.output_format");
@@ -168,13 +173,13 @@ impl Validator for PartiqlHelper {
             info!(query = &source, "Validating");
 
             info!("Parsing");
-            let parser = partiql_parser::Parser::default();
-            let result = parser.parse(source);
+            let compiler = Compiler::default();
+            let result = compiler.parse(source);
             let globals = self.globals.clone();
             match result {
                 Ok(parsed) => {
                     #[cfg(feature = "visualize")]
-                    if flag_display {
+                    if flag_ast {
                         use crate::visualize::render::display;
                         display(&parsed.ast);
                     }
@@ -186,9 +191,36 @@ impl Validator for PartiqlHelper {
                     spinner.enable_steady_tick(Duration::from_millis(100));
                     spinner.set_message("Query running");
 
+                    info!("Planning");
+                    let plan = compiler.plan(&parsed);
+                    let plan = match plan {
+                        Ok(plan) => plan,
+                        Err(e) => {
+                            error!("Planning failed due to {e}");
+                            let err = Report::new(e);
+                            return Ok(ValidationResult::Invalid(Some(format!("\n\n{err:?}"))));
+                        }
+                    };
+                    #[cfg(feature = "visualize")]
+                    if flag_plan {
+                        use crate::visualize::render::display;
+                        display(&plan);
+                    }
+
+                    info!("Compiling");
+                    let eval = compiler.compile(&parsed, &plan);
+                    let eval = match eval {
+                        Ok(eval) => eval,
+                        Err(e) => {
+                            error!("Compiling failed due to {e}");
+                            let err = Report::new(e);
+                            return Ok(ValidationResult::Invalid(Some(format!("\n\n{err:?}"))));
+                        }
+                    };
+
                     info!("Evaluating");
                     let start = SystemTime::now();
-                    let evaluated = evaluate_parsed(&parsed, globals);
+                    let evaluated = compiler.evaluate(&parsed, eval, globals);
                     let end = SystemTime::now();
                     let duration = end.duration_since(start).unwrap();
                     let duration = HumanDuration(duration);

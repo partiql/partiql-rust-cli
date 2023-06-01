@@ -2,7 +2,7 @@ use crate::error::{CLIError, CLIErrors};
 
 use partiql_catalog::{Extension, PartiqlCatalog};
 use partiql_eval::env::basic::MapBindings;
-use partiql_eval::eval::Evaluated;
+use partiql_eval::eval::{EvalPlan, Evaluated};
 use partiql_extension_ion::decode::IonDecoderConfig;
 use partiql_extension_ion::Encoding;
 use partiql_extension_ion_functions::IonExtension;
@@ -13,6 +13,55 @@ use partiql_value::Value;
 use std::fs;
 use std::path::Path;
 
+pub struct Compiler {
+    catalog: PartiqlCatalog,
+}
+
+impl Default for Compiler {
+    fn default() -> Self {
+        Compiler { catalog: catalog() }
+    }
+}
+
+impl Compiler {
+    pub fn parse<'a>(&self, query: &'a str) -> Result<Parsed<'a>, CLIErrors> {
+        partiql_parser::Parser::default()
+            .parse(query)
+            .map_err(CLIErrors::from)
+    }
+
+    pub fn plan(&self, query: &Parsed) -> Result<LogicalPlan<BindingsOp>, CLIErrors> {
+        let planner = partiql_logical_planner::LogicalPlanner::new(&self.catalog);
+        let lowered = planner.lower(query);
+        match lowered {
+            Ok(plan) => Ok(plan),
+            Err(err) => Err(CLIErrors::from((query.text, err))),
+        }
+    }
+
+    pub fn compile(
+        &self,
+        query: &Parsed,
+        plan: &LogicalPlan<BindingsOp>,
+    ) -> Result<EvalPlan, CLIErrors> {
+        let mut compiler = partiql_eval::plan::EvaluatorPlanner::new(&self.catalog);
+        compiler
+            .compile(&plan)
+            .map_err(|err| CLIErrors::from((query.text, err)))
+    }
+
+    pub fn evaluate(
+        &self,
+        query: &Parsed,
+        mut eval_plan: EvalPlan,
+        globals: MapBindings<Value>,
+    ) -> Result<Evaluated, CLIErrors> {
+        eval_plan
+            .execute_mut(globals)
+            .map_err(|err| CLIErrors::from((query.text, err)))
+    }
+}
+
 fn catalog() -> PartiqlCatalog {
     let mut catalog = PartiqlCatalog::default();
     let ext = IonExtension {};
@@ -22,30 +71,11 @@ fn catalog() -> PartiqlCatalog {
 }
 
 pub fn evaluate(query: &str, globals: MapBindings<Value>) -> Result<Evaluated, CLIErrors> {
-    let parser = partiql_parser::Parser::default();
-    let parsed = parser.parse(query);
-    evaluate_parsed(&parsed?, globals)
-}
-
-pub fn evaluate_parsed(
-    query: &Parsed,
-    globals: MapBindings<Value>,
-) -> Result<Evaluated, CLIErrors> {
-    let catalog = catalog();
-    let planner = partiql_logical_planner::LogicalPlanner::new(&catalog);
-    let lowered = planner.lower(query);
-    let plan = match lowered {
-        Ok(plan) => plan,
-        Err(err) => return Err(CLIErrors::from((query.text, err))),
-    };
-
-    let mut compiler = partiql_eval::plan::EvaluatorPlanner::new(&catalog);
-    let mut plan = compiler
-        .compile(&plan)
-        .map_err(|err| CLIErrors::from((query.text, err)))?;
-
-    plan.execute_mut(globals)
-        .map_err(|err| CLIErrors::from((query.text, err)))
+    let compiler = Compiler::default();
+    let parsed = compiler.parse(query)?;
+    let plan = compiler.plan(&parsed)?;
+    let mut eval = compiler.compile(&parsed, &plan)?;
+    compiler.evaluate(&parsed, eval, globals)
 }
 
 pub fn get_bindings(environment: &Option<String>) -> Result<MapBindings<Value>, CLIErrors> {

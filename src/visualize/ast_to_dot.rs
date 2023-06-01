@@ -1,5 +1,6 @@
 use partiql_ast::ast;
 
+use crate::visualize::common::{ToDotGraph, BG_COLOR, FG_COLOR};
 use dot_writer::{Attributes, DotWriter, Node, NodeId, Scope, Shape};
 
 /*
@@ -57,10 +58,6 @@ impl ChildEdgeExt for Targets {
 
 type Targets = Vec<NodeId>;
 
-pub trait ToDotGraph<T> {
-    fn to_graph(self, ast: &T) -> String;
-}
-
 pub struct AstToDot {}
 
 impl Default for AstToDot {
@@ -68,9 +65,6 @@ impl Default for AstToDot {
         AstToDot {}
     }
 }
-
-const BG_COLOR: &'static str = "\"#002b3600\"";
-const FG_COLOR: &'static str = "\"#839496\"";
 
 impl<T> ToDotGraph<T> for AstToDot
 where
@@ -203,10 +197,9 @@ fn lit_to_str(ast: &ast::Lit) -> String {
         Lit::NationalCharStringLit(l) => format!("'{}'", l),
         Lit::BitStringLit(l) => format!("b'{}'", l),
         Lit::HexStringLit(l) => format!("x'{}'", l),
-        Lit::CollectionLit(l) => match l {
-            ast::CollectionLit::ArrayLit(al) => format!("[{}]", al),
-            ast::CollectionLit::BagLit(bl) => format!("<<{}>>", bl),
-        },
+        Lit::BagLit(b) => todo!("bag literals"),
+        Lit::ListLit(b) => todo!("list literals"),
+        Lit::StructLit(b) => todo!("struct literals"),
         Lit::TypedLit(val_str, ty) => {
             format!("{} '{}'", type_to_str(ty), val_str)
         }
