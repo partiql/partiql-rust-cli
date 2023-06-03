@@ -35,7 +35,7 @@ jobs:
       # failure.
       - name: Cargo Test w/ Coverage
         continue-on-error: true
-        run: cargo llvm-cov --verbose --workspace --all-features --no-fail-fast --codecov --output-path codecov.json
+        run: cargo llvm-cov --verbose --workspace --all-features --ignore-run-fail --codecov --output-path codecov.json
       - name: Codecov Upload
         uses: codecov/codecov-action@v3
         with:
