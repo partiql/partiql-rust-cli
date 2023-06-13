@@ -1,17 +1,26 @@
-use crate::visualize::ast_to_dot::{AstToDot, ToDotGraph};
+use crate::visualize::ast_to_dot::AstToDot;
 
 use std::convert::AsRef;
+use std::io::Write;
 use std::os::raw::c_char;
 use std::slice;
 use strum::AsRefStr;
 
+use crate::visualize::common::ToDotGraph;
+use crate::visualize::plan_to_dot::PlanToDot;
 use graphviz_sys as gv;
 use partiql_ast::ast;
+use partiql_ast::ast::Expr;
+use partiql_logical::{BindingsOp, LogicalPlan};
+use serde::Serialize;
 
 /// Convert an AST into JSON
 #[inline]
-pub fn to_json(ast: &Box<ast::Expr>) -> String {
-    serde_json::to_string_pretty(&ast).expect("json print")
+pub fn to_json<T>(data: &T) -> String
+where
+    T: ?Sized + Serialize,
+{
+    serde_json::to_string_pretty(&data).expect("json print")
 }
 
 /// Graphviz output formats
@@ -66,45 +75,63 @@ fn gv_render(format: GraphVizFormat, graph_str: String) -> Vec<u8> {
     }
 }
 
-/// Convert an AST into a graphviz dot-formatted string
-#[inline]
-fn ast_to_dot(ast: &Box<ast::Expr>) -> String {
-    AstToDot::default().to_graph(ast)
+pub struct Graph(pub String);
+
+impl Into<Graph> for &Box<ast::Expr> {
+    fn into(self) -> Graph {
+        Graph(AstToDot::default().to_graph(self))
+    }
+}
+
+impl Into<Graph> for &LogicalPlan<BindingsOp> {
+    fn into(self) -> Graph {
+        Graph(PlanToDot::default().to_graph(self))
+    }
 }
 
 /// FFI to graphviz-sys to convert a dot-formatted graph into the specified text format.
 #[inline]
-fn render_to_string(format: GraphVizFormat, ast: &Box<ast::Expr>) -> String {
-    String::from_utf8(gv_render(format, ast_to_dot(ast))).expect("valid utf8")
+fn render_to_string<T>(format: GraphVizFormat, data: T) -> String
+where
+    T: Into<Graph>,
+{
+    let Graph(graph_str) = data.into();
+    String::from_utf8(gv_render(format, graph_str)).expect("valid utf8")
 }
 
 /// Convert an AST into an attributed dot graph.
 #[inline]
-pub fn to_dot_raw(ast: &Box<ast::Expr>) -> String {
-    ast_to_dot(ast)
-}
-
-/// Convert an AST into an attributed dot graph.
-#[inline]
-pub fn to_dot(ast: &Box<ast::Expr>) -> String {
-    render_to_string(GraphVizFormat::Dot, &ast)
+pub fn to_dot<T>(data: T) -> String
+where
+    T: Into<Graph>,
+{
+    render_to_string(GraphVizFormat::Dot, data)
 }
 
 /// Convert an AST into a pretty-printed dot graph.
 #[inline]
-pub fn to_pretty_dot(ast: &Box<ast::Expr>) -> String {
-    render_to_string(GraphVizFormat::Canon, &ast)
+pub fn to_pretty_dot<T>(data: T) -> String
+where
+    T: Into<Graph>,
+{
+    render_to_string(GraphVizFormat::Canon, data)
 }
 
 /// Convert an AST into a graphviz svg.
 #[inline]
-pub fn to_svg(ast: &Box<ast::Expr>) -> String {
-    render_to_string(GraphVizFormat::Svg, &ast)
+pub fn to_svg<T>(data: T) -> String
+where
+    T: Into<Graph>,
+{
+    render_to_string(GraphVizFormat::Svg, data)
 }
 
 /// Convert an AST into a graphviz svg and render it to png.
-pub fn to_png(ast: &Box<ast::Expr>) -> Vec<u8> {
-    let svg_data = to_svg(ast);
+pub fn to_png<T>(data: T) -> Vec<u8>
+where
+    T: Into<Graph>,
+{
+    let svg_data = to_svg(data);
 
     let mut opt = usvg::Options::default();
     opt.fontdb.load_system_fonts();
@@ -123,8 +150,11 @@ pub fn to_png(ast: &Box<ast::Expr>) -> Vec<u8> {
 }
 
 /// Convert an AST into a graphviz svg and render it to png, then display in the console.
-pub fn display(ast: &Box<ast::Expr>) {
-    let png = to_png(ast);
+pub fn display<T>(data: T)
+where
+    T: Into<Graph>,
+{
+    let png = to_png(data);
 
     let conf = viuer::Config {
         absolute_offset: false,

@@ -37,7 +37,8 @@ Features:
 
 # Visualizations
 In order to use any of the [Graphviz][Graphviz]-based visualizations, you will need the graphviz libraries
-installed on your machine (e.g. `brew install graphviz` or similar).
+installed on your machine (e.g. `brew install graphviz` or similar). You will also need to build with the
+`visualize` [feature][CargoFeatures] enabled.
 
 # TODO
 
@@ -53,3 +54,4 @@ See [REPL-tagged issues](https://github.com/partiql/partiql-rust-cli/issues?q=is
 
 [Graphviz]: https://graphviz.org/
 [GvDot]: https://graphviz.org/doc/info/lang.html
+[CargoFeatures]: https://doc.rust-lang.org/cargo/reference/features.html#command-line-feature-options

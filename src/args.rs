@@ -19,6 +19,16 @@ pub enum Commands {
         #[clap(value_parser)]
         query: String,
     },
+    #[cfg(feature = "visualize")]
+    /// Dump the Plan for a query
+    Plan {
+        #[clap(short = 'T', long = "format", value_enum)]
+        format: Format,
+
+        /// Query to parse
+        #[clap(value_parser)]
+        query: String,
+    },
     /// Evaluate the query with the optional global environment
     Eval {
         /// Query to evaluate
