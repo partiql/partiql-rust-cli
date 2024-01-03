@@ -2,6 +2,7 @@ use partiql_ast::ast;
 
 use crate::visualize::common::{ToDotGraph, BG_COLOR, FG_COLOR};
 use dot_writer::{Attributes, DotWriter, Node, NodeId, Scope, Shape};
+use partiql_ast::ast::TopLevelQuery;
 
 /*
 subgraph cluster_legend {
@@ -146,6 +147,13 @@ where
 {
     fn to_dot(&mut self, out: &mut Scope, ast: &ast::AstNode<T>) -> Targets {
         self.to_dot(out, &ast.node)
+    }
+}
+
+impl ToDot<ast::TopLevelQuery> for AstToDot {
+    fn to_dot(&mut self, out: &mut Scope, ast: &TopLevelQuery) -> Targets {
+        // TODO with
+        self.to_dot(out, &ast.query)
     }
 }
 
@@ -353,7 +361,7 @@ impl ToDot<ast::QuerySet> for AstToDot {
     fn to_dot(&mut self, out: &mut Scope, ast: &ast::QuerySet) -> Targets {
         use ast::QuerySet;
         match &ast {
-            QuerySet::SetOp(_) => todo!(),
+            QuerySet::BagOp(_) => todo!(),
             QuerySet::Select(select) => self.to_dot(out, select),
             QuerySet::Expr(e) => self.to_dot(out, e),
             QuerySet::Values(_) => todo!(),
