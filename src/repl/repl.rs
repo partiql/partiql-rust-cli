@@ -226,7 +226,7 @@ impl Validator for PartiqlHelper {
                     let duration = HumanDuration(duration);
 
                     match evaluated {
-                        Ok(Evaluated { result: v }) => {
+                        Ok(Evaluated { result: v, .. }) => {
                             info!("Evaluation finished in {duration}");
                             spinner.finish_with_message(format!("Query finished in {duration}"));
                             println!("\n==='\n");

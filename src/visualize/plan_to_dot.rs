@@ -99,7 +99,7 @@ impl PlanToDot {
                         .unwrap_or("".to_string())
                 )
             }
-            BindingsOp::SetOp => "set op (TODO)".to_string(),
+            BindingsOp::BagOp(_) => "set op (TODO)".to_string(),
             BindingsOp::Project(p) => {
                 format!(
                     "{{project  | {} }}",

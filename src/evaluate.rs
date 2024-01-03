@@ -3,11 +3,11 @@ use crate::error::{CLIError, CLIErrors};
 use partiql_catalog::{Extension, PartiqlCatalog};
 use partiql_eval::env::basic::MapBindings;
 use partiql_eval::eval::{EvalPlan, Evaluated};
+use partiql_eval::plan::EvaluationMode;
 use partiql_extension_ion::decode::IonDecoderConfig;
 use partiql_extension_ion::Encoding;
 use partiql_extension_ion_functions::IonExtension;
 use partiql_logical::{BindingsOp, LogicalPlan};
-use partiql_logical_planner::error::LoweringError;
 use partiql_parser::Parsed;
 use partiql_value::Value;
 use std::fs;
@@ -44,7 +44,8 @@ impl Compiler {
         query: &Parsed,
         plan: &LogicalPlan<BindingsOp>,
     ) -> Result<EvalPlan, CLIErrors> {
-        let mut compiler = partiql_eval::plan::EvaluatorPlanner::new(&self.catalog);
+        let mut compiler =
+            partiql_eval::plan::EvaluatorPlanner::new(EvaluationMode::Permissive, &self.catalog);
         compiler
             .compile(&plan)
             .map_err(|err| CLIErrors::from((query.text, err)))

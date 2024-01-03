@@ -1,6 +1,6 @@
 use miette::{Diagnostic, LabeledSpan, SourceCode};
+use partiql_ast_passes::error::{AstTransformError, AstTransformationError};
 use partiql_eval::error::{EvalErr, EvaluationError, PlanErr, PlanningError};
-use partiql_logical_planner::error::{LowerError, LoweringError};
 use partiql_parser::{ParseError, ParserError};
 use partiql_source_map::location::{ByteOffset, BytePosition, Location};
 use std::io::Error;
@@ -37,8 +37,8 @@ impl<'a> From<ParserError<'a>> for CLIErrors {
     }
 }
 
-impl From<(&str, LoweringError)> for CLIErrors {
-    fn from((query, err): (&str, LoweringError)) -> Self {
+impl From<(&str, AstTransformationError)> for CLIErrors {
+    fn from((query, err): (&str, AstTransformationError)) -> Self {
         let related = err.errors.into_iter().map(|e| (query, e).into()).collect();
         CLIErrors {
             query: query.to_string(),
@@ -183,28 +183,28 @@ impl<'a> From<(&str, ParseError<'a>)> for CLIError {
     }
 }
 
-impl From<(&str, LowerError)> for CLIError {
-    fn from((source, err): (&str, LowerError)) -> Self {
+impl From<(&str, AstTransformError)> for CLIError {
+    fn from((source, err): (&str, AstTransformError)) -> Self {
         match err {
-            LowerError::IllegalState(error) => CLIError::InternalCompilerError {
+            AstTransformError::IllegalState(error) => CLIError::InternalCompilerError {
                 msg: format!("Compiler Illegal State: {error}"),
                 src: source.to_string(),
             },
-            LowerError::Literal { literal, error } => CLIError::CompileError {
+            AstTransformError::Literal { literal, error } => CLIError::CompileError {
                 msg: format!(
                     "Compiler literal value error. Literal: `{literal}`. Error: `{error}`"
                 ),
                 src: source.to_string(),
             },
-            LowerError::InvalidNumberOfArguments(error) => CLIError::CompileError {
+            AstTransformError::InvalidNumberOfArguments(error) => CLIError::CompileError {
                 msg: format!("Compiler function error: Invalid number of args. Error: `{error}`"),
                 src: source.to_string(),
             },
-            LowerError::UnsupportedFunction(error) => CLIError::CompileError {
+            AstTransformError::UnsupportedFunction(error) => CLIError::CompileError {
                 msg: format!("Compiler function error: Unsupported function. Error: `{error}`"),
                 src: source.to_string(),
             },
-            LowerError::UnsupportedAggregationFunction(error) => CLIError::CompileError {
+            AstTransformError::UnsupportedAggregationFunction(error) => CLIError::CompileError {
                 msg: format!(
                     "Compiler function error: Unsupported aggregate function. Error: `{error}`"
                 ),

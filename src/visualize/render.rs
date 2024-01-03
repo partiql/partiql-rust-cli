@@ -10,7 +10,7 @@ use crate::visualize::common::ToDotGraph;
 use crate::visualize::plan_to_dot::PlanToDot;
 use graphviz_sys as gv;
 use partiql_ast::ast;
-use partiql_ast::ast::Expr;
+use partiql_ast::ast::{AstNode, Expr, TopLevelQuery};
 use partiql_logical::{BindingsOp, LogicalPlan};
 use serde::Serialize;
 
@@ -76,6 +76,12 @@ fn gv_render(format: GraphVizFormat, graph_str: String) -> Vec<u8> {
 }
 
 pub struct Graph(pub String);
+
+impl Into<Graph> for &AstNode<TopLevelQuery> {
+    fn into(self) -> Graph {
+        Graph(AstToDot::default().to_graph(self))
+    }
+}
 
 impl Into<Graph> for &Box<ast::Expr> {
     fn into(self) -> Graph {
