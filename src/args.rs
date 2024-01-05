@@ -1,4 +1,4 @@
-use clap::{ArgEnum, Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -49,7 +49,7 @@ pub enum Commands {
     },
 }
 
-#[derive(ArgEnum, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(ValueEnum, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum OutputFormat {
     /// PartiQL
     Partiql,
@@ -61,7 +61,7 @@ pub enum OutputFormat {
     Table,
 }
 
-#[derive(ArgEnum, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(ValueEnum, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Format {
     /// JSON
     Json,

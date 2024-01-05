@@ -11,7 +11,7 @@ use std::borrow::Cow;
 
 use std::io::Write;
 
-use clap::ArgEnum;
+use clap::ValueEnum;
 use config::Config;
 use indicatif::{HumanDuration, ProgressBar};
 use std::path::PathBuf;
@@ -29,6 +29,7 @@ use partiql_eval::eval::Evaluated;
 
 use crate::args::OutputFormat;
 use partiql_value::Value;
+use rustyline::history::FileHistory;
 use tracing::field::DisplayValue;
 use tracing::{error, info, span, trace, Level};
 use uuid::Uuid;
@@ -104,7 +105,7 @@ impl Highlighter for PartiqlHelper {
         let ranges: Vec<(Style, &str)> = highlighter.highlight_line(line, &self.syntaxes).unwrap();
         (as_24_bit_terminal_escaped(&ranges[..], true) + "\x1b[0m").into()
     }
-    fn highlight_char(&self, line: &str, pos: usize) -> bool {
+    fn highlight_char(&self, line: &str, pos: usize, _forced: bool) -> bool {
         let _ = (line, pos);
         true
     }
@@ -268,7 +269,7 @@ pub fn repl(environment: &Option<String>) -> miette::Result<()> {
 
     let bindings = get_bindings(environment)?;
 
-    let mut rl = rustyline::Editor::<PartiqlHelper>::new().into_diagnostic()?;
+    let mut rl = rustyline::Editor::<PartiqlHelper, FileHistory>::new().into_diagnostic()?;
     rl.set_color_mode(ColorMode::Forced);
     rl.set_helper(Some(PartiqlHelper::new(bindings, config).unwrap()));
     rl.load_history(&history_path).expect("history load");
