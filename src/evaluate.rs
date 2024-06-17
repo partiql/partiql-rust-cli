@@ -2,16 +2,17 @@ use crate::error::{CLIError, CLIErrors};
 
 use partiql_catalog::{Extension, PartiqlCatalog};
 use partiql_eval::env::basic::MapBindings;
-use partiql_eval::eval::{EvalPlan, Evaluated};
+use partiql_eval::eval::{BasicContext, EvalPlan, Evaluated};
 use partiql_eval::plan::EvaluationMode;
 use partiql_extension_ion::decode::IonDecoderConfig;
 use partiql_extension_ion::Encoding;
 use partiql_extension_ion_functions::IonExtension;
 use partiql_logical::{BindingsOp, LogicalPlan};
 use partiql_parser::Parsed;
-use partiql_value::Value;
+use partiql_value::{DateTime, Value};
 use std::fs;
 use std::path::Path;
+use partiql_catalog::context::SystemContext;
 
 pub struct Compiler {
     catalog: PartiqlCatalog,
@@ -55,10 +56,14 @@ impl Compiler {
         &self,
         query: &Parsed,
         mut eval_plan: EvalPlan,
-        globals: MapBindings<Value>,
+        bindings: MapBindings<Value>,
     ) -> Result<Evaluated, CLIErrors> {
+        let sys = SystemContext {
+            now: DateTime::from_system_now_utc(),
+        };
+        let ctx = BasicContext::new(bindings, sys);
         eval_plan
-            .execute_mut(globals)
+            .execute_mut(&ctx)
             .map_err(|err| CLIErrors::from((query.text, err)))
     }
 }
@@ -104,8 +109,8 @@ pub fn get_bindings(environment: &Option<String>) -> Result<MapBindings<Value>, 
                         let mut decoder = partiql_extension_ion::decode::IonDecoderBuilder::new(
                             IonDecoderConfig::default().with_mode(Encoding::PartiqlEncodedAsIon),
                         )
-                        .build(reader)
-                        .expect("expected ion file");
+                            .build(reader)
+                            .expect("expected ion file");
                         let env = decoder
                             .next()
                             .expect("expected single environment value in ion stream")

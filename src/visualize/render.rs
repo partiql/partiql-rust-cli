@@ -14,7 +14,6 @@ use partiql_ast::ast::{AstNode, Expr, TopLevelQuery};
 use partiql_logical::{BindingsOp, LogicalPlan};
 use serde::Serialize;
 use tiny_skia::Transform;
-use usvg::TreeParsing;
 
 /// Convert an AST into JSON
 #[inline]
@@ -144,10 +143,9 @@ where
     let mut opt = usvg::Options::default();
 
     let rtree = usvg::Tree::from_data(svg_data.as_bytes(), &opt).unwrap();
-    let pixmap_size = rtree.size.to_int_size();
+    let pixmap_size = rtree.size().to_int_size();
     let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
-    let rtree = resvg::Tree::from_usvg(&rtree);
-    rtree.render(Transform::default(), &mut pixmap.as_mut());
+    resvg::render(&rtree, Transform::default(), &mut pixmap.as_mut());
     pixmap.encode_png().expect("png encoding failed")
 }
 
