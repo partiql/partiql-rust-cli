@@ -9,13 +9,13 @@ readme = "../README.md"
 keywords = ["sql", "parser", "query", "compilers", "cli"]
 categories = ["database", "compilers", "parser-implementations"]
 exclude = [
-  "**/.git/**",
-  "**/.github/**",
-  "**/.travis.yml",
-  "**/.appveyor.yml",
+    "**/.git/**",
+    "**/.github/**",
+    "**/.travis.yml",
+    "**/.appveyor.yml",
 ]
 edition = "2021"
-version = "0.6.0"
+version = "0.7.0"
 
 
 [[bin]]
@@ -26,30 +26,30 @@ bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-partiql-parser = "0.6"
-partiql-catalog = "0.6"
-partiql-source-map = "0.6"
-partiql-ast = "0.6"
-partiql-ast-passes = "0.6"
-partiql-logical-planner = "0.6"
-partiql-logical = "0.6"
-partiql-value = "0.6"
-partiql-eval = "0.6"
-partiql-extension-ion =  "0.6"
-partiql-extension-ion-functions = "0.6"
+partiql-parser = "0.7"
+partiql-catalog = "0.7"
+partiql-source-map = "0.7"
+partiql-ast = "0.7"
+partiql-ast-passes = "0.7"
+partiql-logical-planner = "0.7"
+partiql-logical = "0.7"
+partiql-value = "0.7"
+partiql-eval = "0.7"
+partiql-extension-ion = "0.7"
+partiql-extension-ion-functions = "0.7"
 
 once_cell = "1"
 
-rustyline = "13"
+rustyline = "14.0.0"
 syntect = "5.*"
 owo-colors = "4"
-supports-color = "2"
-supports-unicode = "2"
-supports-hyperlinks = "2"
-termbg = "0.4.*"
+supports-color = "3"
+supports-unicode = "3"
+supports-hyperlinks = "3"
+termbg = "0.5"
 shellexpand = "3"
 
-itertools = "0.12"
+itertools = "0.13"
 
 console = "0.15"
 indicatif = "0.17"
@@ -58,13 +58,13 @@ dialoguer = "0.11"
 comfy-table = "7"
 
 directories = "5"
-config = "0.13"
+config = "0.14"
 
 thiserror = "1.*"
-miette = { version ="5.*", features = ["fancy"] }
+miette = { version = "7", features = ["fancy"] }
 clap = { version = "4.4", features = ["derive", "wrap_help", "help", "usage", "error-context"] }
 
-uuid = {version="1.3", features=["v4"]}
+uuid = { version = "1.3", features = ["v4"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 tracing-appender = "0.2"
@@ -72,18 +72,18 @@ tracing-appender = "0.2"
 ion-rs = "0.18"
 
 # serde
-serde = { version ="1.*", features = ["derive"], optional = true }
-serde_json = { version ="1.*", optional = true }
+serde = { version = "1.*", features = ["derive"], optional = true }
+serde_json = { version = "1.*", optional = true }
 
 ### Dependencies for the `visualize` feature
 viuer = { version = "0.7", features = ["sixel"], optional = true }
-image = { version ="0.24.*", optional = true }
-graphviz-sys = { version ="0.1.3", optional = true }
-resvg = { version = "0.37", optional = true }
-usvg = { version = "0.37", optional = true }
+graphviz-sys = { version = "0.1.3", optional = true }
+image = { version = "0.24", optional = true }
+resvg = { version = "0.42", optional = true }
+usvg = { version = "0.42", optional = true }
 tiny-skia = { version = "0.11", optional = true }
-strum = { version = "0.25", features = ["derive"], optional = true }
-dot-writer = { version = "0.1.*", optional = true }
+strum = { version = "0.26", features = ["derive"], optional = true }
+dot-writer = { version = "0.1", optional = true }
 
 
 
@@ -91,25 +91,25 @@ dot-writer = { version = "0.1.*", optional = true }
 default = []
 
 serde = [
-  "dep:serde",
-  "dep:serde_json",
-  "partiql-parser/serde",
-  "partiql-source-map/serde",
-  "partiql-ast/serde",
-  "partiql-logical/serde",
-  "partiql-value/serde",
+    "dep:serde",
+    "dep:serde_json",
+    "partiql-parser/serde",
+    "partiql-source-map/serde",
+    "partiql-ast/serde",
+    "partiql-logical/serde",
+    "partiql-value/serde",
 ]
 
 visualize = [
-  "serde",
-  "dep:viuer",
-  "dep:image",
-  "dep:graphviz-sys",
-  "dep:resvg",
-  "dep:usvg",
-  "dep:tiny-skia",
-  "dep:strum",
-  "dep:dot-writer",
+    "serde",
+    "dep:viuer",
+    "dep:image",
+    "dep:graphviz-sys",
+    "dep:resvg",
+    "dep:usvg",
+    "dep:tiny-skia",
+    "dep:strum",
+    "dep:dot-writer",
 ]
 
 [profile.dev.build-override]
