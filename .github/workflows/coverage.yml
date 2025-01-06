@@ -29,7 +29,7 @@ jobs:
           # See: https://github.com/rust-lang/rust/issues/42524
           # See also: https://github.com/actions-rs/grcov#usage
           # nightly can be very volatile--pin this to a version we know works well...
-          toolchain: nightly-2023-03-09
+          toolchain: 1.74.0
       - name: Cargo Test
         run: cargo test --verbose --workspace
         env:
