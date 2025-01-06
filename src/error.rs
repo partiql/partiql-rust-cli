@@ -2,7 +2,7 @@ use miette::{Diagnostic, LabeledSpan, SourceCode};
 use partiql_ast_passes::error::{AstTransformError, AstTransformationError};
 use partiql_eval::error::{EvalErr, EvaluationError, PlanErr, PlanningError};
 use partiql_parser::{ParseError, ParserError};
-use partiql_source_map::location::{ByteOffset, BytePosition, Location};
+use partiql_common::syntax::location::{ByteOffset, BytePosition, Location, Located};
 use std::io::Error;
 
 use thiserror::Error;
@@ -130,14 +130,14 @@ impl From<std::io::Error> for CLIError {
 impl<'a> From<(&str, ParseError<'a>)> for CLIError {
     fn from((source, err): (&str, ParseError<'a>)) -> Self {
         match err {
-            ParseError::SyntaxError(partiql_source_map::location::Located { inner, location }) => {
+            ParseError::SyntaxError(Located { inner, location }) => {
                 CLIError::SyntaxError {
                     src: source.to_string(),
                     msg: format!("Syntax error `{inner}`"),
                     loc: location,
                 }
             }
-            ParseError::UnexpectedToken(partiql_source_map::location::Located {
+            ParseError::UnexpectedToken(Located {
                 inner,
                 location,
             }) => CLIError::SyntaxError {
@@ -145,7 +145,7 @@ impl<'a> From<(&str, ParseError<'a>)> for CLIError {
                 msg: format!("Unexpected token `{}`", inner.token),
                 loc: location,
             },
-            ParseError::LexicalError(partiql_source_map::location::Located { inner, location }) => {
+            ParseError::LexicalError(Located { inner, location }) => {
                 CLIError::SyntaxError {
                     src: source.to_string(),
                     msg: format!("Lexical error `{inner}`"),

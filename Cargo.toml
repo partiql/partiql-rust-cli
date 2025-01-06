@@ -26,17 +26,17 @@ bench = false
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-partiql-parser = "0.7"
-partiql-catalog = "0.7"
-partiql-source-map = "0.7"
-partiql-ast = "0.7"
-partiql-ast-passes = "0.7"
-partiql-logical-planner = "0.7"
-partiql-logical = "0.7"
-partiql-value = "0.7"
-partiql-eval = "0.7"
-partiql-extension-ion = "0.7"
-partiql-extension-ion-functions = "0.7"
+partiql-parser = "0.11"
+partiql-catalog = "0.11"
+partiql-common = "0.11"
+partiql-ast = "0.11"
+partiql-ast-passes = "0.11"
+partiql-logical-planner = "0.11"
+partiql-logical = "0.11"
+partiql-value = "0.11"
+partiql-eval = "0.11"
+partiql-extension-ion = "0.11"
+partiql-extension-ion-functions = "0.11"
 
 once_cell = "1"
 
@@ -94,7 +94,7 @@ serde = [
     "dep:serde",
     "dep:serde_json",
     "partiql-parser/serde",
-    "partiql-source-map/serde",
+    "partiql-common/serde",
     "partiql-ast/serde",
     "partiql-logical/serde",
     "partiql-value/serde",

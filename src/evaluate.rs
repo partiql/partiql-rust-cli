@@ -1,6 +1,7 @@
 use crate::error::{CLIError, CLIErrors};
 
-use partiql_catalog::{Extension, PartiqlCatalog};
+use partiql_catalog::extension::Extension;
+use partiql_catalog::catalog::PartiqlCatalog;
 use partiql_eval::env::basic::MapBindings;
 use partiql_eval::eval::{BasicContext, EvalPlan, Evaluated};
 use partiql_eval::plan::EvaluationMode;
