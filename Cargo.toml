@@ -5,7 +5,7 @@ description = "PartiQL CLI"
 homepage = "https://github.com/partiql/partiql-rust-cli"
 repository = "https://github.com/partiql/partiql-rust-cli"
 license = "Apache-2.0"
-readme = "../README.md"
+readme = "README.md"
 keywords = ["sql", "parser", "query", "compilers", "cli"]
 categories = ["database", "compilers", "parser-implementations"]
 exclude = [
@@ -15,7 +15,7 @@ exclude = [
     "**/.appveyor.yml",
 ]
 edition = "2021"
-version = "0.7.0"
+version = "0.11.0"
 
 
 [[bin]]
