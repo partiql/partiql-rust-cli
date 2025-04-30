@@ -19,7 +19,7 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install llvm -y
       - name: Git Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: recursive
       - name: Rust Toolchain
@@ -34,7 +34,7 @@ jobs:
       # Cache the `cargo build` so future jobs can reuse build
       - name: Cache cargo build
         if: matrix.os == 'ubuntu-latest'
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: restore-build
         with:
           path: ./*

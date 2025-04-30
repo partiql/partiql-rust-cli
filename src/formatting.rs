@@ -1,5 +1,4 @@
 use crate::args::OutputFormat;
-use crate::pretty::PrettyPrint;
 
 use comfy_table::{Cell, Color, Table};
 use ion_rs::IonWriter;
@@ -8,6 +7,7 @@ use partiql_extension_ion::Encoding;
 use partiql_value::Value;
 use std::collections::HashMap;
 use std::io::Write;
+use partiql_common::pretty::ToPretty;
 
 pub fn print_value(format: &OutputFormat, value: &Value) {
     match format {
@@ -96,11 +96,7 @@ fn partiql_table_pretty(value: &Value) -> String {
 }
 
 fn partiql_pretty(value: &Value) -> String {
-    let mut pretty = String::new();
-    value
-        .pretty(&mut pretty)
-        .expect("Error when trying to pretty print result");
-    pretty
+    value.to_pretty_string(40).expect("pretty print value")
 }
 
 fn partiql_pretty_print(value: &Value) {

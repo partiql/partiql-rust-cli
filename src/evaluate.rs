@@ -14,6 +14,8 @@ use partiql_value::{DateTime, Value};
 use std::fs;
 use std::path::Path;
 use partiql_catalog::context::SystemContext;
+use partiql_extension_csv::CsvExtension;
+use partiql_extension_value_functions::PartiqlValueFnExtension;
 
 pub struct Compiler {
     catalog: PartiqlCatalog,
@@ -74,6 +76,10 @@ fn catalog() -> PartiqlCatalog {
     let ext = IonExtension {};
     ext.load(&mut catalog)
         .expect("ion extension load to succeed");
+    let ext = CsvExtension{};
+    ext.load(&mut catalog).expect("csv extension load to succeed");
+    let ext = PartiqlValueFnExtension{};
+    ext.load(&mut catalog).expect("value fn extension load to succeed");
     catalog
 }
 
