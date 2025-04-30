@@ -24,6 +24,7 @@ use syntect::util::as_24_bit_terminal_escaped;
 
 use miette::{IntoDiagnostic, Report};
 use owo_colors::OwoColorize;
+use partiql_common::pretty::ToPretty;
 use partiql_eval::env::basic::MapBindings;
 use partiql_eval::eval::Evaluated;
 
@@ -179,10 +180,9 @@ impl Validator for PartiqlHelper {
             let globals = self.globals.clone();
             match result {
                 Ok(parsed) => {
-                    #[cfg(feature = "visualize")]
                     if flag_ast {
-                        use crate::visualize::render::display;
-                        display(&parsed.ast);
+                        println!("{}", parsed.ast.to_pretty_string(80).expect("pp"));
+                        return Ok(ValidationResult::Valid(None));
                     }
 
                     println!();

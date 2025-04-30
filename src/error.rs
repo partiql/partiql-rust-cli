@@ -164,17 +164,13 @@ impl<'a> From<(&str, ParseError<'a>)> for CLIError {
                 msg: format!("Parser Illegal State: {error}"),
                 src: source.to_string(),
             },
-            ParseError::UnexpectedEndOfInput => {
-                // Since `UnexpectedEndOfInput` doesn't include a source location, have the CLIError
-                // point to the end of the input source. Tracking issue to add source location
-                // to `UnexpectedEndOfInput`: https://github.com/partiql/partiql-lang-rust/issues/350
-                let last_char = (source.len() - 1) as u32;
+            ParseError::UnexpectedEndOfInput(loc) => {
                 CLIError::SyntaxError {
                     src: source.to_string(),
                     msg: "Unexpected end of input".to_string(),
                     loc: Location {
-                        start: BytePosition(ByteOffset(last_char)),
-                        end: BytePosition(ByteOffset(last_char)),
+                        start: loc,
+                        end: loc,
                     },
                 }
             }
