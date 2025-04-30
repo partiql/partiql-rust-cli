@@ -2,12 +2,12 @@ use crate::args::OutputFormat;
 
 use comfy_table::{Cell, Color, Table};
 use ion_rs::IonWriter;
+use partiql_common::pretty::ToPretty;
 use partiql_extension_ion::encode::{IonEncoderBuilder, IonEncoderConfig};
 use partiql_extension_ion::Encoding;
 use partiql_value::Value;
 use std::collections::HashMap;
 use std::io::Write;
-use partiql_common::pretty::ToPretty;
 
 pub fn print_value(format: &OutputFormat, value: &Value) {
     match format {
@@ -43,8 +43,7 @@ pub fn print_value(format: &OutputFormat, value: &Value) {
                     }
                 }
             }
-            let empty_row: Vec<_> = std::iter::repeat(Value::Null)
-                .take(columns.len())
+            let empty_row: Vec<_> = std::iter::repeat_n(Value::Null, columns.len())
                 .map(|v| Cell::new(partiql_pretty(&v)).fg(Color::DarkRed))
                 .collect();
 

@@ -1,8 +1,8 @@
 use miette::{Diagnostic, LabeledSpan, SourceCode};
 use partiql_ast_passes::error::{AstTransformError, AstTransformationError};
+use partiql_common::syntax::location::{BytePosition, Located, Location};
 use partiql_eval::error::{EvalErr, EvaluationError, PlanErr, PlanningError};
 use partiql_parser::{ParseError, ParserError};
-use partiql_common::syntax::location::{ByteOffset, BytePosition, Location, Located};
 use std::io::Error;
 
 use thiserror::Error;
@@ -99,7 +99,7 @@ impl Diagnostic for CLIError {
             CLIError::SyntaxError { src, .. } => Some(src),
             CLIError::InternalCompilerError { src, .. } => Some(src),
             CLIError::IOReadError => None,
-            CLIError::CompileError { msg, src } => Some(src),
+            CLIError::CompileError { msg: _, src } => Some(src),
             CLIError::UnknownError(_) => None,
         }
     }
@@ -130,28 +130,21 @@ impl From<std::io::Error> for CLIError {
 impl<'a> From<(&str, ParseError<'a>)> for CLIError {
     fn from((source, err): (&str, ParseError<'a>)) -> Self {
         match err {
-            ParseError::SyntaxError(Located { inner, location }) => {
-                CLIError::SyntaxError {
-                    src: source.to_string(),
-                    msg: format!("Syntax error `{inner}`"),
-                    loc: location,
-                }
-            }
-            ParseError::UnexpectedToken(Located {
-                inner,
-                location,
-            }) => CLIError::SyntaxError {
+            ParseError::SyntaxError(Located { inner, location }) => CLIError::SyntaxError {
+                src: source.to_string(),
+                msg: format!("Syntax error `{inner}`"),
+                loc: location,
+            },
+            ParseError::UnexpectedToken(Located { inner, location }) => CLIError::SyntaxError {
                 src: source.to_string(),
                 msg: format!("Unexpected token `{}`", inner.token),
                 loc: location,
             },
-            ParseError::LexicalError(Located { inner, location }) => {
-                CLIError::SyntaxError {
-                    src: source.to_string(),
-                    msg: format!("Lexical error `{inner}`"),
-                    loc: location,
-                }
-            }
+            ParseError::LexicalError(Located { inner, location }) => CLIError::SyntaxError {
+                src: source.to_string(),
+                msg: format!("Lexical error `{inner}`"),
+                loc: location,
+            },
             ParseError::Unknown(location) => CLIError::SyntaxError {
                 src: source.to_string(),
                 msg: "Unknown parser error".to_string(),
@@ -164,16 +157,14 @@ impl<'a> From<(&str, ParseError<'a>)> for CLIError {
                 msg: format!("Parser Illegal State: {error}"),
                 src: source.to_string(),
             },
-            ParseError::UnexpectedEndOfInput(loc) => {
-                CLIError::SyntaxError {
-                    src: source.to_string(),
-                    msg: "Unexpected end of input".to_string(),
-                    loc: Location {
-                        start: loc,
-                        end: loc,
-                    },
-                }
-            }
+            ParseError::UnexpectedEndOfInput(loc) => CLIError::SyntaxError {
+                src: source.to_string(),
+                msg: "Unexpected end of input".to_string(),
+                loc: Location {
+                    start: loc,
+                    end: loc,
+                },
+            },
             other => CLIError::UnknownError(other.to_string()),
         }
     }

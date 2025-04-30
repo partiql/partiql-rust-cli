@@ -1,21 +1,21 @@
-use crate::error::{CLIError, CLIErrors};
+use crate::error::CLIErrors;
 
-use partiql_catalog::extension::Extension;
 use partiql_catalog::catalog::PartiqlCatalog;
+use partiql_catalog::context::SystemContext;
+use partiql_catalog::extension::Extension;
 use partiql_eval::env::basic::MapBindings;
 use partiql_eval::eval::{BasicContext, EvalPlan, Evaluated};
 use partiql_eval::plan::EvaluationMode;
+use partiql_extension_csv::CsvExtension;
 use partiql_extension_ion::decode::IonDecoderConfig;
 use partiql_extension_ion::Encoding;
 use partiql_extension_ion_functions::IonExtension;
+use partiql_extension_value_functions::PartiqlValueFnExtension;
 use partiql_logical::{BindingsOp, LogicalPlan};
 use partiql_parser::Parsed;
 use partiql_value::{DateTime, Value};
 use std::fs;
 use std::path::Path;
-use partiql_catalog::context::SystemContext;
-use partiql_extension_csv::CsvExtension;
-use partiql_extension_value_functions::PartiqlValueFnExtension;
 
 pub struct Compiler {
     catalog: PartiqlCatalog,
@@ -51,7 +51,7 @@ impl Compiler {
         let mut compiler =
             partiql_eval::plan::EvaluatorPlanner::new(EvaluationMode::Permissive, &self.catalog);
         compiler
-            .compile(&plan)
+            .compile(plan)
             .map_err(|err| CLIErrors::from((query.text, err)))
     }
 
@@ -76,10 +76,12 @@ fn catalog() -> PartiqlCatalog {
     let ext = IonExtension {};
     ext.load(&mut catalog)
         .expect("ion extension load to succeed");
-    let ext = CsvExtension{};
-    ext.load(&mut catalog).expect("csv extension load to succeed");
-    let ext = PartiqlValueFnExtension{};
-    ext.load(&mut catalog).expect("value fn extension load to succeed");
+    let ext = CsvExtension {};
+    ext.load(&mut catalog)
+        .expect("csv extension load to succeed");
+    let ext = PartiqlValueFnExtension {};
+    ext.load(&mut catalog)
+        .expect("value fn extension load to succeed");
     catalog
 }
 
@@ -87,7 +89,7 @@ pub fn evaluate(query: &str, globals: MapBindings<Value>) -> Result<Evaluated, C
     let compiler = Compiler::default();
     let parsed = compiler.parse(query)?;
     let plan = compiler.plan(&parsed)?;
-    let mut eval = compiler.compile(&parsed, &plan)?;
+    let eval = compiler.compile(&parsed, &plan)?;
     compiler.evaluate(&parsed, eval, globals)
 }
 
@@ -116,8 +118,8 @@ pub fn get_bindings(environment: &Option<String>) -> Result<MapBindings<Value>, 
                         let mut decoder = partiql_extension_ion::decode::IonDecoderBuilder::new(
                             IonDecoderConfig::default().with_mode(Encoding::PartiqlEncodedAsIon),
                         )
-                            .build(reader)
-                            .expect("expected ion file");
+                        .build(reader)
+                        .expect("expected ion file");
                         let env = decoder
                             .next()
                             .expect("expected single environment value in ion stream")
