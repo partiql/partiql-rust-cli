@@ -62,7 +62,7 @@ fn main() -> miette::Result<()> {
         } => {
             let bindings = get_bindings(environment)?;
             let compiler = Compiler::default();
-            let parsed = compiler.parse(&query)?;
+            let parsed = compiler.parse(query)?;
             let plan = compiler.plan(&parsed)?;
             let eval = compiler.compile(&parsed, &plan)?;
             let evaluated = compiler.evaluate(&parsed, eval, bindings)?.result;
